@@ -4,8 +4,6 @@
     {
         [EnumName(StaticName = "Zeamistrap")]
         IconZeamistrap,
-        [EnumName(StaticName = "Bloxstrap")]
-        IconBloxstrap,
         [EnumName(StaticName = "2008")]
         Icon2008,
         [EnumName(StaticName = "2011")]
@@ -21,8 +19,6 @@
         [EnumName(StaticName = "2022")]
         Icon2022,
         [EnumName(FromTranslation = "Common.Custom")]
-        IconCustom,
-        [EnumName(StaticName = "Bloxstrap (Classic)")]
-        IconBloxstrapClassic
+        IconCustom
     }
 }

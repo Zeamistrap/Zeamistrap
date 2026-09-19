@@ -1195,26 +1195,26 @@ Isarado muna ang kahit anong application na maaaring gamitin ang mga file ng Rob
   <data name="Bootstrapper.Status.UpgradingBloxstrap" xml:space="preserve">
     <value>Kinukuha ang latest Zeamistrap...</value>
   </data>
-  <data name="Menu.Fishstrap.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Description" xml:space="preserve">
     <value>I-configure ang mga option na nanuugnay sa pag-uugali ng Zeamistrap mismo.</value>
   </data>
-  <data name="Menu.Fishstrap.Analytics.Title" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Analytics.Title" xml:space="preserve">
     <value>I-enable ang pag-send ng analitiko</value>
   </data>
-  <data name="Menu.Fishstrap.Analytics.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Analytics.Description" xml:space="preserve">
     <value>Ito ay anonima lang at walang masama, promise. Para sa insight na anong kinokolekta namin at bakit, tignan mo ang aming [privacy policy]({0}).</value>
   </data>
-  <data name="Menu.Fishstrap.ExportData.Title" xml:space="preserve">
+  <data name="Menu.Zeamistrap.ExportData.Title" xml:space="preserve">
     <value>I-export ang diagnostic data</value>
   </data>
-  <data name="Menu.Fishstrap.ExportData.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.ExportData.Description" xml:space="preserve">
     <value>I-gather ang impormasyon na pwedeng I-upload online para ma-troubleshoot ang iyong nararanasan na problema.</value>
   </data>
-  <data name="Menu.Fishstrap.ExportData.ExportConfig" xml:space="preserve">
+  <data name="Menu.Zeamistrap.ExportData.ExportConfig" xml:space="preserve">
     <value>Zeamistrap configuration</value>
     <comment>Label that appears next to a checkbox</comment>
   </data>
-  <data name="Menu.Fishstrap.ExportData.ExportLogs" xml:space="preserve">
+  <data name="Menu.Zeamistrap.ExportData.ExportLogs" xml:space="preserve">
     <value>Lahat ng Zeamistrap logs</value>
     <comment>Label that appears next to a checkbox</comment>
   </data>

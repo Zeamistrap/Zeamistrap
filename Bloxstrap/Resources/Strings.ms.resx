@@ -1214,13 +1214,13 @@ Sila tutup sebarang aplikasi yang mungkin menggunakan fail Roblox, dan cuba lagi
   <data name="Bootstrapper.Status.UpgradingBloxstrap" xml:space="preserve">
     <value>Mencuba mendapatkan aplikasi Zeamistrap terbaharu...</value>
   </data>
-  <data name="Menu.Fishstrap.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Description" xml:space="preserve">
     <value>Konfigurasi opsyen yang berkaitan dengan tingkah laku Zeamistrap itu sendiri.</value>
   </data>
-  <data name="Menu.Fishstrap.Analytics.Title" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Analytics.Title" xml:space="preserve">
     <value>Benarkan penghantaran analitik</value>
   </data>
-  <data name="Menu.Fishstrap.Analytics.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Analytics.Description" xml:space="preserve">
     <value>Untuk maklumat tentang apa yang kami kumpulkan dan sebabnya, rujuk dasar [privasi kami.]({0}). Ia adalah secara anonim dan tidak berniat jahat, kami janji.</value>
   </data>
   <data name="Enums.CustomThemeTemplate.Blank" xml:space="preserve">

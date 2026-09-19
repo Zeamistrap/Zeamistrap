@@ -1067,8 +1067,9 @@ namespace Bloxstrap
 
             var versionComparison = Utilities.CompareVersions(App.Version, releaseInfo.TagName);
 
-            // check if we aren't using a deployed build, so we can update to one if a new version comes out
-            if (App.IsProductionBuild && (versionComparison == VersionComparison.Equal || versionComparison == VersionComparison.GreaterThan))
+            // this fork's GitHub release may predate the icons/branding in a local build,
+            // so never force-update when running a build that is the same version or newer
+            if (versionComparison == VersionComparison.Equal || versionComparison == VersionComparison.GreaterThan)
             {
                 App.Logger.WriteLine(LOG_IDENT, "No updates found");
                 return false;
@@ -1126,6 +1127,111 @@ namespace Bloxstrap
                     startInfo.ArgumentList.Add("-player");
                 else if (_launchMode == LaunchMode.Studio && !startInfo.ArgumentList.Contains("-studio"))
                     startInfo.ArgumentList.Add("-studio");
+
+                App.Settings.Save();
+
+                using (new InterProcessLock("AutoUpdater"))
+                {
+                    Process.Start(startInfo);
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                App.Logger.WriteLine(LOG_IDENT, "An exception occurred when running the auto-updater");
+                App.Logger.WriteException(LOG_IDENT, ex);
+
+                Frontend.ShowMessageBox(
+                    string.Format(Strings.Bootstrapper_AutoUpdateFailed, version),
+                    MessageBoxImage.Information
+                );
+
+                Utilities.ShellExecute(App.ProjectDownloadLink);
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Checks for updates when the app is opened outside of a game launch (menu/settings).
+        /// Mirrors <see cref="CheckForUpdates"/> but without a bootstrapper dialog, and relaunches
+        /// with only the original arguments so the menu/settings window opens again after upgrading.
+        /// </summary>
+        public static async Task<bool> CheckForUpdatesAtStartup()
+        {
+            const string LOG_IDENT = "Bootstrapper::CheckForUpdatesAtStartup";
+
+            if (App.LaunchSettings.UpgradeFlag.Active)
+                return false;
+
+            // don't update if there's another instance running (likely running in the background)
+            if (Process.GetProcessesByName(App.ProjectName).Length > 1)
+            {
+                App.Logger.WriteLine(LOG_IDENT, $"More than one {App.ProjectName} instance running, aborting update check");
+                return false;
+            }
+
+            App.Logger.WriteLine(LOG_IDENT, "Checking for updates...");
+
+#if !DEBUG_UPDATER
+            var releaseInfo = await App.GetLatestRelease();
+
+            if (releaseInfo is null)
+                return false;
+
+            var versionComparison = Utilities.CompareVersions(App.Version, releaseInfo.TagName);
+
+            // this fork's GitHub release may predate the icons/branding in a local build,
+            // so never force-update when running a build that is the same version or newer
+            if (versionComparison == VersionComparison.Equal || versionComparison == VersionComparison.GreaterThan)
+            {
+                App.Logger.WriteLine(LOG_IDENT, "No updates found");
+                return false;
+            }
+
+            string version = releaseInfo.TagName;
+#else
+            string version = App.Version;
+#endif
+
+            try
+            {
+#if DEBUG_UPDATER
+                string downloadLocation = Path.Combine(Paths.TempUpdates, $"{App.ProjectName}.exe");
+
+                Directory.CreateDirectory(Paths.TempUpdates);
+
+                File.Copy(Paths.Process, downloadLocation, true);
+#else
+                var asset = releaseInfo.Assets![0];
+
+                string downloadLocation = Path.Combine(Paths.TempUpdates, asset.Name);
+
+                Directory.CreateDirectory(Paths.TempUpdates);
+
+                App.Logger.WriteLine(LOG_IDENT, $"Downloading {releaseInfo.TagName}...");
+
+                if (!File.Exists(downloadLocation))
+                {
+                    var response = await App.HttpClient.GetAsync(asset.BrowserDownloadUrl);
+
+                    await using var fileStream = new FileStream(downloadLocation, FileMode.OpenOrCreate, FileAccess.Write);
+                    await response.Content.CopyToAsync(fileStream);
+                }
+#endif
+
+                App.Logger.WriteLine(LOG_IDENT, $"Starting {version}...");
+
+                ProcessStartInfo startInfo = new()
+                {
+                    FileName = downloadLocation,
+                };
+
+                startInfo.ArgumentList.Add("-upgrade");
+
+                foreach (string arg in App.LaunchSettings.Args)
+                    startInfo.ArgumentList.Add(arg);
 
                 App.Settings.Save();
 

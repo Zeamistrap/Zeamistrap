@@ -1223,13 +1223,13 @@ Zeamistrap е инсталиран на „{1}“.</value>
   <data name="Bootstrapper.Status.UpgradingBloxstrap" xml:space="preserve">
     <value>Вземане на най-новата версия на Zeamistrap...</value>
   </data>
-  <data name="Menu.Fishstrap.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Description" xml:space="preserve">
     <value>Конфигурирайте опции, свързани с поведението на Zeamistrap.</value>
   </data>
-  <data name="Menu.Fishstrap.Analytics.Title" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Analytics.Title" xml:space="preserve">
     <value>Активирайте изпращането на аналитика</value>
   </data>
-  <data name="Menu.Fishstrap.Analytics.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Analytics.Description" xml:space="preserve">
     <value>Те са напълно анонимни. За информация върху какво събираме и защо. Вижте нашата [политика за поверителност]({0}).</value>
   </data>
   <data name="Enums.CustomThemeTemplate.Blank" xml:space="preserve">

@@ -1222,13 +1222,13 @@ Kérjük, zárjon be minden olyan alkalmazást, amely a Roblox fájljait haszná
   <data name="Bootstrapper.Status.UpgradingBloxstrap" xml:space="preserve">
     <value>A legújabb Zeamistrap beszerzése...</value>
   </data>
-  <data name="Menu.Fishstrap.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Description" xml:space="preserve">
     <value>A Zeamistrap viselkedésével kapcsolatos beállítások konfigurálása.</value>
   </data>
-  <data name="Menu.Fishstrap.Analytics.Title" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Analytics.Title" xml:space="preserve">
     <value>Az analitika küldésének engedélyezése</value>
   </data>
-  <data name="Menu.Fishstrap.Analytics.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Analytics.Description" xml:space="preserve">
     <value>Névtelen és semmi rossz, ígérjük. Ha többet szeretne megtudni arról, hogy mit és miért gyűjtünk, olvassa el az [adatvédelmi szabályzatunkat]({0}).</value>
   </data>
   <data name="Enums.CustomThemeTemplate.Blank" xml:space="preserve">

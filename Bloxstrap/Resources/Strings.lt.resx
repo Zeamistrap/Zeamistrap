@@ -1224,13 +1224,13 @@ Uždarykite visas programas, kurios gali naudoti „Roblox“ failus, ir paleisk
   <data name="Bootstrapper.Status.UpgradingBloxstrap" xml:space="preserve">
     <value>Gaunamas naujausias „Zeamistrap“...</value>
   </data>
-  <data name="Menu.Fishstrap.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Description" xml:space="preserve">
     <value>Konfigūruokite parinktis, susijusias su pačios „Zeamistrap“ elgsena.</value>
   </data>
-  <data name="Menu.Fishstrap.Analytics.Title" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Analytics.Title" xml:space="preserve">
     <value>Įjungti analitikos siuntimą</value>
   </data>
-  <data name="Menu.Fishstrap.Analytics.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Analytics.Description" xml:space="preserve">
     <value>Tai – anonimiška ir nieko blogo, pažadame. Apie tai, ką ir kodėl renkame, žiūrėkite mūsų [privatumo politiką]({0}).</value>
   </data>
   <data name="Enums.CustomThemeTemplate.Blank" xml:space="preserve">

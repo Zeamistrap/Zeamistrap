@@ -1218,13 +1218,13 @@ Zeamistrap จะติดตั้งไว้ที่ "{1}"</value>
   <data name="Bootstrapper.Status.UpgradingBloxstrap" xml:space="preserve">
     <value>กำลังดาวน์โหลดเวอร์ชั่นล่าสุดของ Zeamistrap...</value>
   </data>
-  <data name="Menu.Fishstrap.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Description" xml:space="preserve">
     <value>กำหนดค่าเกี่ยวกับตัวเลือกที่เกี่ยวข้องกับพฤติกรรมของ Zeamistrap เอง</value>
   </data>
-  <data name="Menu.Fishstrap.Analytics.Title" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Analytics.Title" xml:space="preserve">
     <value>เปิดใช้งานการส่งข้อมูลวิเคราะห์</value>
   </data>
-  <data name="Menu.Fishstrap.Analytics.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Analytics.Description" xml:space="preserve">
     <value>มันเป็นข้อมูลที่ไม่ระบุชื่อและไม่มีอะไรที่ไม่ดีแน่นอน สําหรับข้อมูลเกี่ยวกับสิ่งที่เรารวบรวมและเหตุผล โปรดดูที่ [นโยบายความเป็นส่วนตัวของเรา]({0})</value>
   </data>
   <data name="Enums.CustomThemeTemplate.Blank" xml:space="preserve">

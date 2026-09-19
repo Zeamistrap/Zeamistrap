@@ -1225,13 +1225,13 @@ Si prega di chiudere tutte le applicazioni che potrebbero usare i file di Roblox
   <data name="Bootstrapper.Status.UpgradingBloxstrap" xml:space="preserve">
     <value>Ricerca della versione più recente di Zeamistrap...</value>
   </data>
-  <data name="Menu.Fishstrap.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Description" xml:space="preserve">
     <value>Configura le opzioni a riguardo del comportamento di Zeamistrap.</value>
   </data>
-  <data name="Menu.Fishstrap.Analytics.Title" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Analytics.Title" xml:space="preserve">
     <value>Abilita l'invio delle statistiche</value>
   </data>
-  <data name="Menu.Fishstrap.Analytics.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Analytics.Description" xml:space="preserve">
     <value>È anonimo e non è niente di male, promesso. Per informazioni su che cosa collezioniamo e perché, guarda la nostra [informativa sulla privacy]({0}).</value>
   </data>
   <data name="Enums.CustomThemeTemplate.Blank" xml:space="preserve">

@@ -184,6 +184,8 @@ namespace Bloxstrap
         {
             const string LOG_IDENT = "LaunchHandler::LaunchSettings";
 
+            RunStartupUpdateCheck();
+
             using var interlock = new InterProcessLock("Settings");
 
             if (interlock.IsAcquired)
@@ -210,10 +212,33 @@ namespace Bloxstrap
 
         public static void LaunchMenu()
         {
+            RunStartupUpdateCheck();
+
             var dialog = new LaunchMenuDialog();
             dialog.ShowDialog();
 
             ProcessNextAction(dialog.CloseAction);
+        }
+
+        private static void RunStartupUpdateCheck()
+        {
+            const string LOG_IDENT = "LaunchHandler::RunStartupUpdateCheck";
+
+#if (!DEBUG || DEBUG_UPDATER) && !QA_BUILD
+            if (App.Settings.Prop.CheckForUpdates && !App.LaunchSettings.UpgradeFlag.Active)
+            {
+                Task.Run(async () =>
+                {
+                    bool updatePresent = await Bootstrapper.CheckForUpdatesAtStartup();
+
+                    if (updatePresent)
+                    {
+                        App.Logger.WriteLine(LOG_IDENT, "Update found, restarting...");
+                        App.Terminate();
+                    }
+                });
+            }
+#endif
         }
 
         public static void LaunchRoblox(LaunchMode launchMode)

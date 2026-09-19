@@ -1202,26 +1202,26 @@ Silakan tutup aplikasi apa pun yang dapat menggunakan berkas Roblox, lalu luncur
   <data name="Bootstrapper.Status.UpgradingBloxstrap" xml:space="preserve">
     <value>Mengunduh versi Zeamistrap terbaru...</value>
   </data>
-  <data name="Menu.Fishstrap.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Description" xml:space="preserve">
     <value>Atur opsi yang terkait dengan perilaku Zeamistrap itu sendiri.</value>
   </data>
-  <data name="Menu.Fishstrap.Analytics.Title" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Analytics.Title" xml:space="preserve">
     <value>Aktifkan pengiriman analisa</value>
   </data>
-  <data name="Menu.Fishstrap.Analytics.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Analytics.Description" xml:space="preserve">
     <value>Ini anonim dan tidak digunakan untuk hal yang jahat, janji. Untuk wawasan tentang apa yang kami kumpulkan dan mengapa, lihat [kebijakan privasi]({0}).</value>
   </data>
-  <data name="Menu.Fishstrap.ExportData.Title" xml:space="preserve">
+  <data name="Menu.Zeamistrap.ExportData.Title" xml:space="preserve">
     <value>Ekspor data diagnostik</value>
   </data>
-  <data name="Menu.Fishstrap.ExportData.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.ExportData.Description" xml:space="preserve">
     <value>Kumpulkan informasi yang bisa dikirim online untuk pemecahan masalah yang anda miliki.</value>
   </data>
-  <data name="Menu.Fishstrap.ExportData.ExportConfig" xml:space="preserve">
+  <data name="Menu.Zeamistrap.ExportData.ExportConfig" xml:space="preserve">
     <value>Konfigurasi Zeamistrap</value>
     <comment>Label that appears next to a checkbox</comment>
   </data>
-  <data name="Menu.Fishstrap.ExportData.ExportLogs" xml:space="preserve">
+  <data name="Menu.Zeamistrap.ExportData.ExportLogs" xml:space="preserve">
     <value>Semua log Zeamistrap</value>
     <comment>Label that appears next to a checkbox</comment>
   </data>

@@ -1201,26 +1201,26 @@
   <data name="Bootstrapper.Status.UpgradingBloxstrap" xml:space="preserve">
     <value>در حال گرفتن آخرین بلاکسترپ...</value>
   </data>
-  <data name="Menu.Fishstrap.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Description" xml:space="preserve">
     <value>پیکربندی تنظیماتی به رفتار خود بلاکسترپ ربط دارد.</value>
   </data>
-  <data name="Menu.Fishstrap.Analytics.Title" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Analytics.Title" xml:space="preserve">
     <value>فعال سازی ارسال تجزیه و تحلیل</value>
   </data>
-  <data name="Menu.Fishstrap.Analytics.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Analytics.Description" xml:space="preserve">
     <value>این کار ناشناس است و هیچ چیز بدی نیست، قول میدهیم. برای اطلاعات بیشتر در مورد آنچه که جمع‌آوری می کنیم و چرا، به [خط مشی رازداری] ({0}) ما مراجعه کنید.</value>
   </data>
-  <data name="Menu.Fishstrap.ExportData.Title" xml:space="preserve">
+  <data name="Menu.Zeamistrap.ExportData.Title" xml:space="preserve">
     <value>صدور داده های تشخیصی</value>
   </data>
-  <data name="Menu.Fishstrap.ExportData.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.ExportData.Description" xml:space="preserve">
     <value>برای مشکلی که دارید، اطلاعات عیب یابی را جمع‌آوری کنید که به صورت آنلاین آپلود شود.</value>
   </data>
-  <data name="Menu.Fishstrap.ExportData.ExportConfig" xml:space="preserve">
+  <data name="Menu.Zeamistrap.ExportData.ExportConfig" xml:space="preserve">
     <value>پیکربندی بلاکسترپ</value>
     <comment>Label that appears next to a checkbox</comment>
   </data>
-  <data name="Menu.Fishstrap.ExportData.ExportLogs" xml:space="preserve">
+  <data name="Menu.Zeamistrap.ExportData.ExportLogs" xml:space="preserve">
     <value>تمامی لاگ های بلاکسترپ</value>
     <comment>Label that appears next to a checkbox</comment>
   </data>

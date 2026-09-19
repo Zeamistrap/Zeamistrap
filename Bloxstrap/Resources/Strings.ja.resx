@@ -1233,7 +1233,7 @@ Robloxのアプリファイルを使用している可能性のあるアプリ�
   <data name="Bootstrapper.Status.UpgradingBloxstrap" xml:space="preserve">
     <value>Zeamistrapの最新版を取得中...</value>
   </data>
-  <data name="Menu.Fishstrap.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Description" xml:space="preserve">
     <value>Zeamistrapの動作に関する設定を変更できます。</value>
   </data>
   <data name="Enums.CustomThemeTemplate.Blank" xml:space="preserve">
@@ -1873,16 +1873,16 @@ Robloxのアプリファイルを使用している可能性のあるアプリ�
   <data name="Menu.FastFlagsDisabled.Header" xml:space="preserve">
     <value>FastFlagsは一時的に無効化されています</value>
   </data>
-  <data name="Menu.Fishstrap.ExportData.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.ExportData.Description" xml:space="preserve">
     <value>問題のトラブルシューティングのために、オンラインでアップロードできる情報を収集します。</value>
   </data>
-  <data name="Menu.Fishstrap.ExportData.ExportConfig" xml:space="preserve">
+  <data name="Menu.Zeamistrap.ExportData.ExportConfig" xml:space="preserve">
     <value>Zeamistrap設定</value>
   </data>
-  <data name="Menu.Fishstrap.ExportData.ExportLogs" xml:space="preserve">
+  <data name="Menu.Zeamistrap.ExportData.ExportLogs" xml:space="preserve">
     <value>すべてのZeamistrapログ</value>
   </data>
-  <data name="Menu.Fishstrap.ExportData.Title" xml:space="preserve">
+  <data name="Menu.Zeamistrap.ExportData.Title" xml:space="preserve">
     <value>診断データのエクスポート</value>
   </data>
   <data name="Menu.FlagProfiles.ClearFlags" xml:space="preserve">

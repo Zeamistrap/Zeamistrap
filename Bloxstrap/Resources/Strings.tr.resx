@@ -1221,13 +1221,13 @@ Lütfen Roblox'un dosyalarını kullanabiliyor olan uygulamaları kapatın, ve t
   <data name="Bootstrapper.Status.UpgradingBloxstrap" xml:space="preserve">
     <value>Zeamistrap'in en yeni sürümü indiriliyor...</value>
   </data>
-  <data name="Menu.Fishstrap.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Description" xml:space="preserve">
     <value>Zeamistrap'ın davranışı ile ilgili ayarları yapılandırın.</value>
   </data>
-  <data name="Menu.Fishstrap.Analytics.Title" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Analytics.Title" xml:space="preserve">
     <value>Analitikleri göndermeyi etkinleştir</value>
   </data>
-  <data name="Menu.Fishstrap.Analytics.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Analytics.Description" xml:space="preserve">
     <value>Hepsi anonim ve kötü bir şey değil, söz. Ne topladığımız ve neden topladığımız hakkında bilgi için [gizlilik politikamıza]({0}) bakın.</value>
   </data>
   <data name="Enums.CustomThemeTemplate.Blank" xml:space="preserve">

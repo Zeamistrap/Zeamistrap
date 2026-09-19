@@ -1201,26 +1201,26 @@ Sluit alstublieft alle applicaties die mogelijk de bestanden van Roblox gebruike
   <data name="Bootstrapper.Status.UpgradingBloxstrap" xml:space="preserve">
     <value>De nieuwste Zeamistrap krijgen...</value>
   </data>
-  <data name="Menu.Fishstrap.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Description" xml:space="preserve">
     <value>Configureer opties gerelateerd aan het gedrag van Zeamistrap zelf.</value>
   </data>
-  <data name="Menu.Fishstrap.Analytics.Title" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Analytics.Title" xml:space="preserve">
     <value>Het verzenden van analytics inschakelen</value>
   </data>
-  <data name="Menu.Fishstrap.Analytics.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Analytics.Description" xml:space="preserve">
     <value>Het is anoniem en niets slecht, beloofd. Voor inzicht in wat we verzamelen en waarom, zie ons ({0}).</value>
   </data>
-  <data name="Menu.Fishstrap.ExportData.Title" xml:space="preserve">
+  <data name="Menu.Zeamistrap.ExportData.Title" xml:space="preserve">
     <value>Exporteer diagnostische gegevens</value>
   </data>
-  <data name="Menu.Fishstrap.ExportData.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.ExportData.Description" xml:space="preserve">
     <value>Verzamel informatie die online kan worden geüpload om een probleem op te lossen dat je hebt.</value>
   </data>
-  <data name="Menu.Fishstrap.ExportData.ExportConfig" xml:space="preserve">
+  <data name="Menu.Zeamistrap.ExportData.ExportConfig" xml:space="preserve">
     <value>Zeamistrap configuratie</value>
     <comment>Label that appears next to a checkbox</comment>
   </data>
-  <data name="Menu.Fishstrap.ExportData.ExportLogs" xml:space="preserve">
+  <data name="Menu.Zeamistrap.ExportData.ExportLogs" xml:space="preserve">
     <value>Alle Zeamistrap logs</value>
     <comment>Label that appears next to a checkbox</comment>
   </data>

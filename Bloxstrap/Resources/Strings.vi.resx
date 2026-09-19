@@ -1226,13 +1226,13 @@ Xin hãy đóng các ứng dụng đang sử dụng các tập tin của Roblox,
   <data name="Bootstrapper.Status.UpgradingBloxstrap" xml:space="preserve">
     <value>Đang tải xuống phiên bản mới nhất của Zeamistrap...</value>
   </data>
-  <data name="Menu.Fishstrap.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Description" xml:space="preserve">
     <value>Tùy chỉnh những lựa chọn liên quan tới cách hoạt động của Zeamistrap.</value>
   </data>
-  <data name="Menu.Fishstrap.Analytics.Title" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Analytics.Title" xml:space="preserve">
     <value>Bật gửi dữ liệu phân tích</value>
   </data>
-  <data name="Menu.Fishstrap.Analytics.Description" xml:space="preserve">
+  <data name="Menu.Zeamistrap.Analytics.Description" xml:space="preserve">
     <value>Mọi thứ đều ẩn danh và không có gì xấu xa cả, thật đấy. Để biết chúng tôi thu thập những gì và lý do, hãy xem [chính sách quyền riêng tư]({0}) của chúng tôi.</value>
   </data>
   <data name="Enums.CustomThemeTemplate.Blank" xml:space="preserve">
