@@ -40,28 +40,30 @@ If you found any bugs, please [open an issue here][repo-new-issue].
     <https://zeamistrap.app/v1/joingame?placeId=1818>
 - Cache cleaner, channel switcher and many more
 
-## Building from source
+## ソースコードからのビルド
 
-Prerequisites:
+前提条件:
 
-- Windows 10/11 with the .NET 8 SDK installed (the repository's `global.json`
-  resolves any recent SDK via `rollForward: latestMajor`)
-- The `wpfui` submodule must be checked out before the first build:
+- Windows 10 / 11 に .NET 8 SDK がインストールされていること
+  - リポジトリの `global.json` は `rollForward: latestMajor` のため、最近の
+    SDK が自動的に解決されます
+- `wpfui` のソースコードはリポジトリに直接含まれています
+  (サブモジュールではありません。別途取得する必要はありません)
+
+クローン:
 
 ```sh
-git clone --recurse-submodules https://github.com/Zeamistrap/Zeamistrap.git
-# or, when the repository was already cloned without submodules:
-git submodule update --init
+git clone https://github.com/Zeamistrap/Zeamistrap.git
 ```
 
-Build and publish a single-file, framework-dependent executable:
+ビルドと実行ファイルの生成(シングルファイル・フレームワーク依存の実行ファイル):
 
 ```sh
 dotnet build Zeamistrap.sln -c Release
 dotnet publish .\Bloxstrap\Bloxstrap.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:PublishReadyToRun=false -o .\Publish
 ```
 
-The finished binary will be at `Publish\Zeamistrap.exe`.
+完成した実行ファイルは `Publish\Zeamistrap.exe` に出力されます。
 
 ## Special thanks
 
