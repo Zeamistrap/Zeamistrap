@@ -5182,5 +5182,77 @@ namespace Bloxstrap.Resources {
                 return ResourceManager.GetString("Menu.Behaviour.HighPriority.Title", resourceCulture);
             }
         }
+
+        public static string Update_Available_Title {
+            get {
+                return ResourceManager.GetString("Update.Available.Title", resourceCulture);
+            }
+        }
+
+        public static string Update_Available_Message {
+            get {
+                return ResourceManager.GetString("Update.Available.Message", resourceCulture);
+            }
+        }
+
+        public static string Update_Available_NewVersion {
+            get {
+                return ResourceManager.GetString("Update.Available.NewVersion", resourceCulture);
+            }
+        }
+
+        public static string Update_Available_Current {
+            get {
+                return ResourceManager.GetString("Update.Available.Current", resourceCulture);
+            }
+        }
+
+        public static string Update_Available_Latest {
+            get {
+                return ResourceManager.GetString("Update.Available.Latest", resourceCulture);
+            }
+        }
+
+        public static string Update_Available_Notes {
+            get {
+                return ResourceManager.GetString("Update.Available.Notes", resourceCulture);
+            }
+        }
+
+        public static string Update_Available_Later {
+            get {
+                return ResourceManager.GetString("Update.Available.Later", resourceCulture);
+            }
+        }
+
+        public static string Update_Available_Confirm {
+            get {
+                return ResourceManager.GetString("Update.Available.Confirm", resourceCulture);
+            }
+        }
+
+        public static string Update_Available_NoNotes {
+            get {
+                return ResourceManager.GetString("Update.Available.NoNotes", resourceCulture);
+            }
+        }
+
+        public static string Update_Available_NotesSource {
+            get {
+                return ResourceManager.GetString("Update.Available.NotesSource", resourceCulture);
+            }
+        }
+
+        public static string Update_Complete_Title {
+            get {
+                return ResourceManager.GetString("Update.Complete.Title", resourceCulture);
+            }
+        }
+
+        public static string Update_Complete_Message {
+            get {
+                return ResourceManager.GetString("Update.Complete.Message", resourceCulture);
+            }
+        }
     }
 }

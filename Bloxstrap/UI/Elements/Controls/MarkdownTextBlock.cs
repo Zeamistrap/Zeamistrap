@@ -1,12 +1,31 @@
 ﻿using Bloxstrap.UI.ViewModels;
+using Markdig;
+using Markdig.Helpers;
+using Markdig.Syntax;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Markup;
-using System.Windows;
-using Markdig.Syntax;
-using Markdig.Syntax.Inlines;
-using Markdig;
 using System.Windows.Media;
+
+using WpfInline = System.Windows.Documents.Inline;
+using MarkBlock = Markdig.Syntax.Block;
+using MarkCodeBlock = Markdig.Syntax.CodeBlock;
+using MarkFencedCodeBlock = Markdig.Syntax.FencedCodeBlock;
+using MarkHeadingBlock = Markdig.Syntax.HeadingBlock;
+using MarkHtmlBlock = Markdig.Syntax.HtmlBlock;
+using MarkListBlock = Markdig.Syntax.ListBlock;
+using MarkListItemBlock = Markdig.Syntax.ListItemBlock;
+using MarkParagraphBlock = Markdig.Syntax.ParagraphBlock;
+using MarkQuoteBlock = Markdig.Syntax.QuoteBlock;
+using MarkThematicBreakBlock = Markdig.Syntax.ThematicBreakBlock;
+using MarkInline = Markdig.Syntax.Inlines.Inline;
+using MarkContainerInline = Markdig.Syntax.Inlines.ContainerInline;
+using MarkCodeInline = Markdig.Syntax.Inlines.CodeInline;
+using MarkEmphasisInline = Markdig.Syntax.Inlines.EmphasisInline;
+using MarkLineBreakInline = Markdig.Syntax.Inlines.LineBreakInline;
+using MarkLinkInline = Markdig.Syntax.Inlines.LinkInline;
+using MarkLiteralInline = Markdig.Syntax.Inlines.LiteralInline;
 
 namespace Bloxstrap.UI.Elements.Controls
 {
@@ -22,7 +41,7 @@ namespace Bloxstrap.UI.Elements.Controls
                 .UseSoftlineBreakAsHardlineBreak()
                 .Build();
 
-        public static readonly DependencyProperty MarkdownTextProperty = 
+        public static readonly DependencyProperty MarkdownTextProperty =
             DependencyProperty.Register(nameof(MarkdownText), typeof(string), typeof(MarkdownTextBlock),
                 new FrameworkPropertyMetadata(string.Empty, FrameworkPropertyMetadataOptions.AffectsMeasure | FrameworkPropertyMetadataOptions.AffectsRender, OnTextMarkdownChanged));
 
@@ -33,70 +52,234 @@ namespace Bloxstrap.UI.Elements.Controls
             set => SetValue(MarkdownTextProperty, value);
         }
 
-        private static System.Windows.Documents.Inline? GetWpfInlineFromMarkdownInline(Markdig.Syntax.Inlines.Inline? inline)
+        private static WpfInline? GetWpfInlineFromMarkdownInline(MarkInline? inline)
         {
-            if (inline is LiteralInline literalInline)
+            if (inline is MarkLiteralInline literalInline)
             {
                 return new Run(literalInline.ToString());
             }
-            else if (inline is EmphasisInline emphasisInline)
+
+            if (inline is MarkCodeInline codeInline)
             {
-                switch (emphasisInline.DelimiterChar)
+                return new Run(codeInline.Content.ToString())
                 {
-                    case '*':
-                    case '_':
-                        {
-                            if (emphasisInline.DelimiterCount == 1) // 1 = italic
-                            {
-                                var childInline = new Italic(GetWpfInlineFromMarkdownInline(emphasisInline.FirstChild));
-                                return childInline;
-                            }
-                            else // 2 = bold
-                            {
-                                var childInline = new Bold(GetWpfInlineFromMarkdownInline(emphasisInline.FirstChild));
-                                return childInline;
-                            }
-                        }
-
-                    case '=': // marked
-                        {
-                            var childInline = new Span(GetWpfInlineFromMarkdownInline(emphasisInline.FirstChild));
-                            childInline.Background = new SolidColorBrush(Color.FromArgb(50, 255, 255, 255)); // TODO: better colour?
-                            return childInline;
-                        }
-                }
-
-            }
-            else if (inline is LinkInline linkInline)
-            {
-                string? url = linkInline.Url;
-                var textInline = linkInline.FirstChild;
-
-                if (string.IsNullOrEmpty(url))
-                    return GetWpfInlineFromMarkdownInline(textInline);
-
-                var childInline = GetWpfInlineFromMarkdownInline(textInline);
-
-                return new Hyperlink(childInline)
-                {
-                    Command = GlobalViewModel.OpenWebpageCommand,
-                    CommandParameter = url
+                    FontFamily = new System.Windows.Media.FontFamily("Cascadia Code")
                 };
             }
-            else if (inline is LineBreakInline)
+
+            if (inline is MarkEmphasisInline emphasisInline)
             {
-                return new LineBreak();
+                Span span = new();
+                bool hasContent = false;
+
+                foreach (var childInline in emphasisInline)
+                {
+                    WpfInline? child = GetWpfInlineFromMarkdownInline(childInline);
+                    if (child is not null)
+                    {
+                        span.Inlines.Add(child);
+                        hasContent = true;
+                    }
+                }
+
+                if (!hasContent)
+                    return null;
+
+                if (emphasisInline.DelimiterChar is '*' or '_')
+                    span.FontStyle = FontStyles.Italic;
+
+                if (emphasisInline.DelimiterCount > 1)
+                    span.FontWeight = FontWeights.Bold;
+
+                if (emphasisInline.DelimiterChar == '=')
+                    span.Background = new SolidColorBrush(Color.FromArgb(50, 255, 255, 255));
+
+                return span;
             }
+
+            if (inline is MarkLinkInline linkInline)
+            {
+                WpfInline? child = GetWpfInlineFromMarkdownInline(linkInline.FirstChild);
+                if (child is null || string.IsNullOrEmpty(linkInline.Url))
+                    return child;
+
+                return new Hyperlink(child)
+                {
+                    Command = GlobalViewModel.OpenWebpageCommand,
+                    CommandParameter = linkInline.Url
+                };
+            }
+
+            if (inline is MarkLineBreakInline)
+                return new LineBreak();
 
             return null;
         }
 
-        private void AddMarkdownInline(Markdig.Syntax.Inlines.Inline? inline)
+        private void AddMarkdownInline(MarkInline? inline)
         {
-            var wpfInline = GetWpfInlineFromMarkdownInline(inline);
+            WpfInline? child = GetWpfInlineFromMarkdownInline(inline);
+            if (child is not null)
+                Inlines.Add(child);
+        }
 
-            if (wpfInline is not null)
-                Inlines.Add(wpfInline);
+        private void AddMarkdownInlines(MarkContainerInline? inline)
+        {
+            if (inline is null)
+                return;
+
+            foreach (var childInline in inline)
+                AddMarkdownInline(childInline);
+        }
+
+        private void AddIndent(int indent)
+        {
+            if (indent > 0)
+                Inlines.Add(new Run(new string('\u00A0', indent * 4)));
+        }
+
+        private void AddLineBreak()
+        {
+            Inlines.Add(new LineBreak());
+        }
+
+        private void AddCodeLines(Markdig.Helpers.StringLineGroup lines, int indent)
+        {
+            foreach (var line in lines.Lines)
+            {
+                AddIndent(indent);
+                Inlines.Add(new Run(line.ToString())
+                {
+                    FontFamily = new System.Windows.Media.FontFamily("Cascadia Code")
+                });
+                AddLineBreak();
+            }
+        }
+
+        private bool AddMarkdownBlock(MarkBlock block, int indent)
+        {
+            if (block is MarkParagraphBlock paragraph)
+            {
+                AddIndent(indent);
+                AddMarkdownInlines(paragraph.Inline);
+                return true;
+            }
+
+            if (block is MarkHeadingBlock heading)
+            {
+                AddIndent(indent);
+
+                Span headingSpan = new()
+                {
+                    FontWeight = FontWeights.SemiBold,
+                    FontSize = Math.Max(12, (double.IsNaN(FontSize) ? 14 : FontSize) + (4 - heading.Level) * 2)
+                };
+
+                if (heading.Inline is not null)
+                {
+                    foreach (var childInline in heading.Inline)
+                    {
+                        WpfInline? child = GetWpfInlineFromMarkdownInline(childInline);
+                        if (child is not null)
+                            headingSpan.Inlines.Add(child);
+                    }
+                }
+
+                Inlines.Add(headingSpan);
+                return true;
+            }
+
+            if (block is MarkListBlock list)
+                return AddMarkdownList(list, indent);
+
+            if (block is MarkQuoteBlock quote)
+            {
+                foreach (var childBlock in quote)
+                {
+                    AddIndent(indent);
+                    Inlines.Add(new Run("> "));
+                    AddMarkdownBlock(childBlock, indent + 1);
+                    AddLineBreak();
+                }
+
+                return true;
+            }
+
+            if (block is MarkFencedCodeBlock fencedCodeBlock)
+            {
+                AddCodeLines(fencedCodeBlock.Lines, indent);
+                return true;
+            }
+
+            if (block is MarkCodeBlock codeBlock)
+            {
+                AddCodeLines(codeBlock.Lines, indent);
+                return true;
+            }
+
+            if (block is MarkHtmlBlock htmlBlock)
+            {
+                AddCodeLines(htmlBlock.Lines, indent);
+                return true;
+            }
+
+            if (block is MarkThematicBreakBlock)
+            {
+                Inlines.Add(new Run("────────"));
+                AddLineBreak();
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool AddMarkdownList(MarkListBlock list, int indent)
+        {
+            int orderedNumber = int.TryParse(list.OrderedStart, out int startNumber) ? startNumber : 1;
+
+            foreach (var childBlock in list)
+            {
+                if (childBlock is not MarkListItemBlock listItem)
+                    continue;
+
+                AddIndent(indent);
+
+                string marker = list.IsOrdered
+                    ? $"{orderedNumber++}{list.OrderedDelimiter}\u00A0"
+                    : indent > 0 ? "◦\u00A0" : "•\u00A0";
+                Inlines.Add(new Run(marker)
+                {
+                    FontWeight = FontWeights.SemiBold
+                });
+
+                bool firstChild = true;
+                foreach (var itemBlock in listItem)
+                {
+                    if (!firstChild)
+                        AddLineBreak();
+
+                    AddMarkdownBlock(itemBlock, firstChild ? indent : indent + 1);
+
+                    firstChild = false;
+                }
+
+                AddLineBreak();
+            }
+
+            return true;
+        }
+
+        private void AddPlainTextFallback(string rawDocument)
+        {
+            string normalized = rawDocument.Replace("\r\n", "\n", StringComparison.Ordinal);
+            string[] lines = normalized.Split('\n');
+
+            for (int index = 0; index < lines.Length; index++)
+            {
+                Inlines.Add(new Run(lines[index]));
+                if (index < lines.Length - 1)
+                    AddLineBreak();
+            }
         }
 
         private static void OnTextMarkdownChanged(DependencyObject dependencyObject, DependencyPropertyChangedEventArgs dependencyPropertyChangedEventArgs)
@@ -107,28 +290,26 @@ namespace Bloxstrap.UI.Elements.Controls
             if (dependencyPropertyChangedEventArgs.NewValue is not string rawDocument)
                 return;
 
-            var document = Markdown.Parse(rawDocument, _markdownPipeline);
-
             markdownTextBlock.Inlines.Clear();
 
-            var lastBlock = document.Last();
+            MarkdownDocument document = Markdown.Parse(rawDocument, _markdownPipeline);
+            List<MarkBlock> blocks = document.ToList();
+            int renderedBlocks = 0;
 
-            // matt was evidently very tired on the night he was first writing this
-            // https://github.com/bloxstraplabs/bloxstrap/blob/289b9dec77cf35b2cc6504019bc9c7701626be1f/Bloxstrap/UI/Elements/Controls/MarkdownTextBlock.cs#L111
-            foreach (var block in document)
+            for (int index = 0; index < blocks.Count; index++)
             {
-                if (block is not ParagraphBlock paragraphBlock || paragraphBlock.Inline is null)
+                if (!markdownTextBlock.AddMarkdownBlock(blocks[index], 0))
                     continue;
 
-                foreach (var inline in paragraphBlock.Inline)
-                    markdownTextBlock.AddMarkdownInline(inline);
+                renderedBlocks++;
 
-                if (block != lastBlock)
-                {
-                    markdownTextBlock.AddMarkdownInline(new LineBreakInline());
-                    markdownTextBlock.AddMarkdownInline(new LineBreakInline());
-                }
+                if (index < blocks.Count - 1)
+                    markdownTextBlock.AddLineBreak();
             }
+
+            // Keep uncommon/older Markdown documents visible instead of silently dropping them.
+            if (renderedBlocks == 0 && !string.IsNullOrWhiteSpace(rawDocument))
+                markdownTextBlock.AddPlainTextFallback(rawDocument);
         }
     }
 }

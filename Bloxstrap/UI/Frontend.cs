@@ -1,5 +1,6 @@
 ﻿using System.Windows;
 
+using Bloxstrap.Models.APIs.GitHub;
 using Bloxstrap.UI.Elements.Bootstrapper;
 using Bloxstrap.UI.Elements.Dialogs;
 
@@ -55,6 +56,27 @@ namespace Bloxstrap.UI
             Application.Current.Dispatcher.Invoke(() =>
             {
                 new ConnectivityDialog(title, description, image, exception).ShowDialog();
+            });
+        }
+
+        public static bool ShowUpdateDialog(string currentVersion, GithubRelease release)
+        {
+            // Quiet/background updates retain their non-interactive behavior.
+            if (App.LaunchSettings.QuietFlag.Active)
+                return true;
+
+            return Application.Current.Dispatcher.Invoke(() =>
+                new UpdateDialog(currentVersion, release).ShowDialog() == true);
+        }
+
+        public static void ShowUpdateCompleteDialog(string version)
+        {
+            if (App.LaunchSettings.QuietFlag.Active)
+                return;
+
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                new UpdateCompleteDialog(version).ShowDialog();
             });
         }
 

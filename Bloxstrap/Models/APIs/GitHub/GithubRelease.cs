@@ -11,6 +11,9 @@
         [JsonPropertyName("body")]
         public string Body { get; set; } = null!;
 
+        [JsonPropertyName("html_url")]
+        public string? HtmlUrl { get; set; }
+
         [JsonPropertyName("created_at")]
         public string CreatedAt { get; set; } = null!;
 

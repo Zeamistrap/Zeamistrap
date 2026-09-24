@@ -282,11 +282,9 @@ namespace Bloxstrap
 
             SetStatus(Strings.Bootstrapper_Status_Connecting);
 
-            long connectivityStarted = Stopwatch.GetTimestamp();
             var connectionResult = await Deployment.InitializeConnectivity();
 
             App.Logger.WriteLine(LOG_IDENT, $"Connectivity check finished in {Stopwatch.GetElapsedTime(runStarted).TotalMilliseconds:F1} ms");
-            PerformanceMetrics.Mark("bootstrapper.connectivity", connectivityStarted);
 
             if (connectionResult is not null)
                 HandleConnectionError(connectionResult);
@@ -342,7 +340,6 @@ namespace Bloxstrap
                 {
                     await GetLatestVersionInfo();
                     App.Logger.WriteLine(LOG_IDENT, $"Version lookup completed in {Stopwatch.GetElapsedTime(versionLookupStarted).TotalMilliseconds:F1} ms");
-                    PerformanceMetrics.Mark("bootstrapper.version_lookup", versionLookupStarted);
                 }
                 catch (Exception ex)
                 {
@@ -392,7 +389,6 @@ namespace Bloxstrap
                                 return;
 
                             App.Logger.WriteLine(LOG_IDENT, $"Package upgrade completed in {Stopwatch.GetElapsedTime(packageUpgradeStarted).TotalMilliseconds:F1} ms");
-                            PerformanceMetrics.Mark("bootstrapper.package_upgrade", packageUpgradeStarted);
                         }
                     }
                 }
@@ -428,15 +424,12 @@ namespace Bloxstrap
                         Frontend.ShowBalloonTip(Strings.Bootstrapper_ModificationsFailed_Title, Strings.Bootstrapper_ModificationsFailed_Message, ToolTipIcon.Warning);
                 }
 
-                long robloxLaunchStarted = Stopwatch.GetTimestamp();
                 await StartRoblox();
-                PerformanceMetrics.Mark("bootstrapper.roblox_launch", robloxLaunchStarted);
             }
 
             await mutex.ReleaseAsync();
 
             App.Logger.WriteLine(LOG_IDENT, $"Bootstrapper completed in {Stopwatch.GetElapsedTime(runStarted).TotalMilliseconds:F1} ms");
-            PerformanceMetrics.Mark("bootstrapper.total", runStarted);
             Dialog?.CloseBootstrapper();
         }
 
@@ -853,7 +846,6 @@ namespace Bloxstrap
         private async Task StartRoblox()
         {
             const string LOG_IDENT = "Bootstrapper::StartRoblox";
-            long startRobloxStarted = Stopwatch.GetTimestamp();
 
             SetStatus(Strings.Bootstrapper_Status_Starting);
 
@@ -1056,14 +1048,10 @@ namespace Bloxstrap
                 }
             }
 
-            PerformanceMetrics.Mark("roblox.preflight", startRobloxStarted);
-
             // Register the handler before enabling notifications so a fast-starting
             // Roblox process cannot create its log between those two operations.
             if (logWatcher is not null)
                 logWatcher.EnableRaisingEvents = true;
-
-            long processStartTimestamp = Stopwatch.GetTimestamp();
 
             try
             {
@@ -1073,8 +1061,6 @@ namespace Bloxstrap
                 if (App.Settings.Prop.UseHighPriority && !process.HasExited)
                     process.PriorityClass = ProcessPriorityClass.High;
 
-                PerformanceMetrics.Mark("roblox.process_start", processStartTimestamp);
-
                 // Waiting synchronously here blocks the WPF dispatcher and can add
                 // hundreds of milliseconds to every launch. It is also unnecessary
                 // unless a feature actually consumes the window handle.
@@ -1082,12 +1068,10 @@ namespace Bloxstrap
                 {
                     try
                     {
-                        long mainWindowWaitStarted = Stopwatch.GetTimestamp();
                         _appWindowHandle = await WaitForMainWindowHandleAsync(
                             process,
                             TimeSpan.FromSeconds(15),
                             _cancelTokenSource.Token);
-                        PerformanceMetrics.Mark("roblox.main_window_wait", mainWindowWaitStarted);
 
                         if (_appWindowHandle == IntPtr.Zero && !process.HasExited)
                             App.Logger.WriteLine(LOG_IDENT, "Roblox main window was not available before the timeout.");
@@ -1116,7 +1100,6 @@ namespace Bloxstrap
 
             if (needsWatcher)
             {
-                long logWaitStarted = Stopwatch.GetTimestamp();
                 Task completedLogTask = await Task.WhenAny(
                     logCreated!.Task,
                     Task.Delay(TimeSpan.FromSeconds(15)),
@@ -1137,8 +1120,6 @@ namespace Bloxstrap
                 {
                     App.Logger.WriteLine(LOG_IDENT, $"Got log file as {logFileName}");
                 }
-
-                PerformanceMetrics.Mark("roblox.log_wait", logWaitStarted);
             }
 
             _mutex?.ReleaseAsync();
@@ -1184,7 +1165,6 @@ namespace Bloxstrap
 
             if (needsWatcher)
             {
-                long watcherStartTimestamp = Stopwatch.GetTimestamp();
                 using var ipl = new InterProcessLock("Watcher", TimeSpan.FromSeconds(5));
 
                 var watcherData = new WatcherData
@@ -1204,8 +1184,6 @@ namespace Bloxstrap
 
                 if (ipl.IsAcquired)
                     Process.Start(Paths.Process, args);
-
-                PerformanceMetrics.Mark("roblox.watcher_start", watcherStartTimestamp);
             }
 
         }
@@ -1325,6 +1303,12 @@ namespace Bloxstrap
                 Dialog.CancelEnabled = false;
 
             string version = releaseInfo.TagName;
+
+            if (!Frontend.ShowUpdateDialog(App.Version, releaseInfo))
+            {
+                App.Logger.WriteLine(LOG_IDENT, "Update deferred by the user");
+                return false;
+            }
 #else
             string version = App.Version;
 #endif
@@ -1393,7 +1377,7 @@ namespace Bloxstrap
                     MessageBoxImage.Information
                 );
 
-                Utilities.ShellExecute(App.ProjectDownloadLink);
+                App.Logger.WriteLine(LOG_IDENT, "Automatic update failed; the website will not be opened automatically");
             }
 
             return false;
@@ -1437,6 +1421,12 @@ namespace Bloxstrap
             }
 
             string version = releaseInfo.TagName;
+
+            if (!Frontend.ShowUpdateDialog(App.Version, releaseInfo))
+            {
+                App.Logger.WriteLine(LOG_IDENT, "Update deferred by the user");
+                return false;
+            }
 #else
             string version = App.Version;
 #endif
@@ -1498,7 +1488,7 @@ namespace Bloxstrap
                     MessageBoxImage.Information
                 );
 
-                Utilities.ShellExecute(App.ProjectDownloadLink);
+                App.Logger.WriteLine(LOG_IDENT, "Automatic update failed; the website will not be opened automatically");
             }
 
             return false;
@@ -2176,7 +2166,6 @@ namespace Bloxstrap
         private async Task DownloadPackage(Package package, CancellationToken cancellationToken)
         {
             string LOG_IDENT = $"Bootstrapper::DownloadPackage.{package.Name}";
-            long packageStarted = Stopwatch.GetTimestamp();
 
             if (cancellationToken.IsCancellationRequested)
                 return;
@@ -2203,7 +2192,6 @@ namespace Bloxstrap
 
                     Interlocked.Add(ref _totalDownloadedBytes, package.PackedSize);
                     UpdateProgressBar();
-                    PerformanceMetrics.Mark($"package.{package.Name}", packageStarted);
 
                     return;
                 }
@@ -2227,7 +2215,6 @@ namespace Bloxstrap
                 {
                     Interlocked.Add(ref _totalDownloadedBytes, package.PackedSize);
                     UpdateProgressBar();
-                    PerformanceMetrics.Mark($"package.{package.Name}", packageStarted);
 
                     return;
                 }
@@ -2307,7 +2294,6 @@ namespace Bloxstrap
                         throw new ChecksumFailedException($"Failed to verify download of {packageUrl}\n\nExpected hash: {package.Signature}\nGot hash: {calculatedHash}");
 
                     App.Logger.WriteLine(LOG_IDENT, $"Finished downloading! ({totalBytesRead} bytes total)");
-                    PerformanceMetrics.Mark($"package.{package.Name}", packageStarted);
                     break;
                 }
                 catch (Exception ex)

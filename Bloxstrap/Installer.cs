@@ -8,12 +8,6 @@ namespace Bloxstrap
 {
     internal class Installer
     {
-        /// <summary>
-        /// Should this version automatically open the release notes page?
-        /// Recommended for major updates only.
-        /// </summary>
-        private const bool OpenReleaseNotes = true;
-
         private static string DesktopShortcut => Path.Combine(Paths.Desktop, $"{App.ProjectName}.lnk");
 
         private static string StartMenuShortcut => Path.Combine(Paths.WindowsStartMenu, $"{App.ProjectName}.lnk");
@@ -654,21 +648,9 @@ namespace Bloxstrap
             if (currentVer is null)
                 return;
 
-            if (isAutoUpgrade)
-            {
-#pragma warning disable CS0162 // Unreachable code detected
-                if (OpenReleaseNotes)
-                    Utilities.ShellExecute($"https://wiki.zeamistrap.app/patch-notes/v{currentVer.Replace(".", "-")}");
-#pragma warning restore CS0162 // Unreachable code detected
-            }
-            else
-            {
-                Frontend.ShowMessageBox(
-                    string.Format(Strings.InstallChecker_Updated, currentVer),
-                    MessageBoxImage.Information,
-                    MessageBoxButton.OK
-                );
-            }
+            // Keep the update experience inside the application. Do not open a
+            // website or release-notes page automatically after an update.
+            Frontend.ShowUpdateCompleteDialog(currentVer);
         }
 
         public void ImportSettingsFromBloxstrap()

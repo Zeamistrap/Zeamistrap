@@ -1922,4 +1922,40 @@ Please don't change this setting unless you know what you're doing.</value>
   <data name="Menu.Behaviour.HighPriority.Description" xml:space="preserve">
     <value>Runs the Roblox process with high priority, which can improve frame rate stability.</value>
   </data>
+  <data name="Update.Available.Title" xml:space="preserve">
+    <value>Update available</value>
+  </data>
+  <data name="Update.Available.Message" xml:space="preserve">
+    <value>A new version of Zeamistrap is available.</value>
+  </data>
+  <data name="Update.Available.NewVersion" xml:space="preserve">
+    <value>A new version is available.</value>
+  </data>
+  <data name="Update.Available.Current" xml:space="preserve">
+    <value>Current version</value>
+  </data>
+  <data name="Update.Available.Latest" xml:space="preserve">
+    <value>Latest version</value>
+  </data>
+  <data name="Update.Available.Notes" xml:space="preserve">
+    <value>Release notes</value>
+  </data>
+  <data name="Update.Available.Later" xml:space="preserve">
+    <value>Later</value>
+  </data>
+  <data name="Update.Available.Confirm" xml:space="preserve">
+    <value>Update now</value>
+  </data>
+  <data name="Update.Available.NoNotes" xml:space="preserve">
+    <value>No release notes were provided.</value>
+  </data>
+  <data name="Update.Available.NotesSource" xml:space="preserve">
+    <value>View release notes on GitHub</value>
+  </data>
+  <data name="Update.Complete.Title" xml:space="preserve">
+    <value>Update complete</value>
+  </data>
+  <data name="Update.Complete.Message" xml:space="preserve">
+    <value>Zeamistrap has been updated to version {0}.</value>
+  </data>
 </root>
