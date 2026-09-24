@@ -39,13 +39,20 @@ namespace Bloxstrap.UI.ViewModels.Settings
 
         private void CloseWindow() => RequestCloseWindowEvent?.Invoke(this, EventArgs.Empty);
 
-        private void SaveSettings()
+        private bool TrySaveSettings()
         {
             const string LOG_IDENT = "MainWindowViewModel::SaveSettings";
 
-            App.Settings.Save();
-            App.State.Save();
-            App.FastFlags.Save();
+            bool settingsSaved = App.Settings.Save();
+            bool stateSaved = App.State.Save();
+            bool flagsSaved = App.FastFlags.Save();
+
+            if (!settingsSaved || !stateSaved || !flagsSaved)
+            {
+                App.Logger.WriteLine(LOG_IDENT, "One or more settings files could not be saved; pending tasks were not executed.");
+                return false;
+            }
+
             App.GlobalSettings.Save();
 
             foreach (var pair in App.PendingSettingTasks)
@@ -62,10 +69,18 @@ namespace Bloxstrap.UI.ViewModels.Settings
             App.PendingSettingTasks.Clear();
 
             RequestSaveNoticeEvent?.Invoke(this, EventArgs.Empty);
+            return true;
         }
+
+        private void SaveSettings()
+        {
+            TrySaveSettings();
+        }
+
         public void SaveAndLaunchSettings()
         {
-            SaveSettings();
+            if (!TrySaveSettings())
+                return;
 
             if (!App.LaunchSettings.TestModeFlag.Active) // test mode already launches an instance
                 Process.Start(Paths.Application, "-player");

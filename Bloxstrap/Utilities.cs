@@ -1,10 +1,20 @@
 ﻿using Bloxstrap.AppData;
 using System.ComponentModel;
+using System.Security.Principal;
 
 namespace Bloxstrap
 {
     static class Utilities
     {
+        public static bool IsAdministrator
+        {
+            get
+            {
+                using var identity = WindowsIdentity.GetCurrent();
+                return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
+            }
+        }
+
         public static void ShellExecute(string website)
         {
             try
@@ -156,10 +166,23 @@ namespace Bloxstrap
             }
         }
 
-        public static void KillBackgroundUpdater()
+        public static bool KillBackgroundUpdater()
         {
             using EventWaitHandle handle = new EventWaitHandle(false, EventResetMode.AutoReset, $"{App.ProjectName}-BackgroundUpdaterKillEvent");
             handle.Set();
+
+            var stopwatch = Stopwatch.StartNew();
+            const int timeoutMilliseconds = 30000;
+
+            while (DoesMutexExist($"{App.ProjectName}-BackgroundUpdater"))
+            {
+                if (stopwatch.ElapsedMilliseconds >= timeoutMilliseconds)
+                    return false;
+
+                Thread.Sleep(100);
+            }
+
+            return true;
         }
     }
 }

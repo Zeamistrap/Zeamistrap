@@ -85,21 +85,54 @@ namespace Bloxstrap
             }
         }
 
-        public virtual void Save()
+        public virtual bool Save()
         {
             string LOG_IDENT = $"{LOG_IDENT_CLASS}::Save";
-            
+            string? temporaryFile = null;
+
             App.Logger.WriteLine(LOG_IDENT, $"Saving to {FileLocation}...");
 
             Directory.CreateDirectory(Path.GetDirectoryName(FileLocation)!);
 
             try
             {
+                // Serialize saves for the same state file across the foreground
+                // bootstrapper, watcher, and background updater processes.
+                using var saveLock = new InterProcessLock($"Json-{ClassName}", TimeSpan.FromSeconds(5));
+
+                if (!saveLock.IsAcquired)
+                {
+                    App.Logger.WriteLine(LOG_IDENT, "Timed out waiting for the state-file lock; skipping save.");
+                    return false;
+                }
+
                 string contents = JsonSerializer.Serialize(Prop, new JsonSerializerOptions { WriteIndented = true });
+                string contentsHash = MD5Hash.FromString(contents);
 
-                File.WriteAllText(FileLocation, contents);
+                // If another process changed the file after this instance loaded it,
+                // do not overwrite that newer state with a stale in-memory copy.
+                if (LastFileHash is not null && File.Exists(FileLocation) && HasFileOnDiskChanged())
+                {
+                    App.Logger.WriteLine(LOG_IDENT, "State file changed on disk; skipping stale save.");
+                    return false;
+                }
 
-                LastFileHash = MD5Hash.FromString(contents);
+                // Avoid rewriting unchanged state files. This is especially important
+                // during startup, where multiple components may save the same state.
+                if (File.Exists(FileLocation) && LastFileHash == contentsHash)
+                {
+                    App.Logger.WriteLine(LOG_IDENT, "No changes detected.");
+                    return true;
+                }
+
+                // Write beside the target and replace it only after the complete
+                // JSON document has been flushed by File.WriteAllText.
+                temporaryFile = $"{FileLocation}.{Environment.ProcessId}.{Guid.NewGuid():N}.tmp";
+                File.WriteAllText(temporaryFile, contents);
+                File.Move(temporaryFile, FileLocation, overwrite: true);
+                temporaryFile = null;
+
+                LastFileHash = contentsHash;
                 _fileLastWriteTimeUtc = File.GetLastWriteTimeUtc(FileLocation);
                 _fileLength = new FileInfo(FileLocation).Length;
             }
@@ -111,10 +144,29 @@ namespace Bloxstrap
                 string errorMessage = string.Format(Resources.Strings.Bootstrapper_JsonManagerSaveFailed, ClassName, ex.Message);
                 Frontend.ShowMessageBox(errorMessage, System.Windows.MessageBoxImage.Warning);
 
-                return;
+                return false;
+            }
+            finally
+            {
+                if (temporaryFile is not null)
+                {
+                    try
+                    {
+                        File.Delete(temporaryFile);
+                    }
+                    catch (IOException)
+                    {
+                        // Best-effort cleanup; the next save can replace stale temp files.
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        // Best-effort cleanup.
+                    }
+                }
             }
 
             App.Logger.WriteLine(LOG_IDENT, "Save complete!");
+            return true;
         }
 
         /// <summary>

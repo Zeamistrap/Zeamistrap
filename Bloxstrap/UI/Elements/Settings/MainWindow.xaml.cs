@@ -26,9 +26,15 @@ namespace Bloxstrap.UI.Elements.Settings
 
         // we should cache this
         private List<SearchBarItem>? _searchIndex;
+        private EventHandler? _remoteDataHandler;
 
         public MainWindow(bool showAlreadyRunningWarning)
         {
+            // Global settings are only needed by the settings window. Deferring this
+            // keeps Roblox launches and helper processes from parsing the XML file.
+            if (!App.GlobalSettings.Loaded)
+                App.GlobalSettings.Load();
+
             var viewModel = new MainWindowViewModel();
 
             viewModel.RequestSaveNoticeEvent += (_, _) => SettingsSavedSnackbar.Show();
@@ -51,7 +57,8 @@ namespace Bloxstrap.UI.Elements.Settings
             string? lastPageName = App.State.Prop.LastPage;
             Type? lastPage = lastPageName is null ? null : Type.GetType(lastPageName);
 
-            App.RemoteData.Subscribe((object? sender, EventArgs e) => {
+            _remoteDataHandler = (object? sender, EventArgs e) =>
+            {
                 RemoteDataBase Data = App.RemoteData.Prop;
 
                 AlertBar.Visibility = Data.AlertEnabled ? Visibility.Visible : Visibility.Collapsed;
@@ -60,7 +67,9 @@ namespace Bloxstrap.UI.Elements.Settings
 
                 if (Data.KillFlags)
                     fastflags.PageType = typeof(FastFlagsDisabled);
-            });
+            };
+
+            App.RemoteData.Subscribe(_remoteDataHandler);
 
             if (lastPage != null)
                 SafeNavigate(lastPage);
@@ -128,7 +137,13 @@ namespace Bloxstrap.UI.Elements.Settings
 
         public INavigation GetNavigation() => RootNavigation;
 
-        public bool Navigate(Type pageType) => RootNavigation.Navigate(pageType);
+        public bool Navigate(Type pageType)
+        {
+            if (pageType == typeof(GlobalSettingsPage) && !App.GlobalSettings.Loaded)
+                return false;
+
+            return RootNavigation.Navigate(pageType);
+        }
 
         public void SetPageService(IPageService pageService) => RootNavigation.PageService = pageService;
 
@@ -159,6 +174,9 @@ namespace Bloxstrap.UI.Elements.Settings
 
         private void WpfUiWindow_Closed(object sender, EventArgs e)
         {
+            if (_remoteDataHandler is not null)
+                App.RemoteData.DataLoaded -= _remoteDataHandler;
+
             if (App.LaunchSettings.TestModeFlag.Active)
                 LaunchHandler.LaunchRoblox(LaunchMode.Player);
             else

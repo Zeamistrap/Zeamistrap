@@ -84,12 +84,6 @@
                 </controls:OptionControl>
             </StackPanel>
         </ui:CardExpander>
-        <TextBlock Text="{x:Static resources:Strings.Common_Performance}" FontSize="20" FontWeight="Medium" Margin="0,16,0,0" />
-        <controls:OptionControl 
-            Header="{x:Static resources:Strings.Menu_Behaviour_HighPriority_Title}"
-            Description="{x:Static resources:Strings.Menu_Behaviour_HighPriority_Description}">
-            <ui:ToggleSwitch IsChecked="{Binding UseHighPriority, Mode=TwoWay}" />
-        </controls:OptionControl>
         <TextBlock Text="{x:Static resources:Strings.Menu_Behaviour_Experimental_Title}" FontSize="20" FontWeight="Medium" Margin="0,16,0,0" />
         <controls:MarkdownTextBlock MarkdownText="{x:Static resources:Strings.Menu_Behaviour_Experimental_Description}" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
         <controls:OptionControl 

@@ -27,9 +27,16 @@
         private const string GameMessageEntryPattern         = @"\[BloxstrapRPC\] (.*)";
         private const string GameServerUptimePattern         = @"Server Prefix:.+_(\d{8}T\d{6}Z)_RCC_[0-9a-z]+";
 
+        private const int MaxHistoryEntries = 100;
+
         private int _logEntriesRead = 0;
         private bool _teleportMarker = false;
         private bool _reservedTeleportMarker = false;
+        private int _disposeSignaled;
+        private readonly CancellationTokenSource _disposeCancellation = new();
+        private readonly object _historyLock = new();
+        private FileStream? _logFileStream;
+        private StreamReader? _streamReader;
 
         public event EventHandler<string>? OnLogEntry;
         public event EventHandler? ShowNotif;
@@ -47,12 +54,18 @@
         
         public ActivityData Data { get; private set; } = new();
 
+        public List<ActivityData> GetHistorySnapshot()
+        {
+            lock (_historyLock)
+                return new(History);
+        }
+
         /// <summary>
         /// Ordered by newest to oldest
         /// </summary>
         public List<ActivityData> History = new();
 
-        public bool IsDisposed = false;
+        public bool IsDisposed => Volatile.Read(ref _disposeSignaled) != 0;
 
         public ActivityWatcher(string? logFile = null)
         {
@@ -60,9 +73,9 @@
                 LogLocation = logFile;
         }
 
-        public async void Start()
+        public async Task StartAsync()
         {
-            const string LOG_IDENT = "ActivityWatcher::Start";
+            const string LOG_IDENT = "ActivityWatcher::StartAsync";
 
             // okay, here's the process:
             //
@@ -75,59 +88,92 @@
             //
             // we'll tail the log file continuously, monitoring for any log entries that we need to determine the current game activity
             
+            CancellationToken cancellationToken = _disposeCancellation.Token;
             FileInfo logFileInfo;
 
-            if (String.IsNullOrEmpty(LogLocation))
+            try
             {
-                string logDirectory = Path.Combine(Paths.LocalAppData, "Roblox\\logs");
+                cancellationToken.ThrowIfCancellationRequested();
 
-                if (!Directory.Exists(logDirectory))
-                    return;
+                if (String.IsNullOrEmpty(LogLocation))
+                {
+                    string logDirectory = Path.Combine(Paths.LocalAppData, "Roblox\\logs");
 
-                // we need to make sure we're fetching the absolute latest log file
-                // if roblox doesn't start quickly enough, we can wind up fetching the previous log file
-                // good rule of thumb is to find a log file that was created in the last 15 seconds or so
+                    if (!Directory.Exists(logDirectory))
+                        return;
 
-                App.Logger.WriteLine(LOG_IDENT, "Opening Roblox log file...");
+                    // we need to make sure we're fetching the absolute latest log file
+                    // if roblox doesn't start quickly enough, we can wind up fetching the previous log file
+                    // good rule of thumb is to find a log file that was created in the last 15 seconds or so
+
+                    App.Logger.WriteLine(LOG_IDENT, "Opening Roblox log file...");
+
+                    while (true)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        FileInfo? newestLog = new DirectoryInfo(logDirectory)
+                            .GetFiles()
+                            .Where(x => x.Name.Contains("Player", StringComparison.OrdinalIgnoreCase) && x.CreationTime <= DateTime.Now)
+                            .OrderByDescending(x => x.CreationTime)
+                            .FirstOrDefault();
+
+                        if (newestLog is not null && newestLog.CreationTime.AddSeconds(15) > DateTime.Now)
+                        {
+                            logFileInfo = newestLog;
+                            break;
+                        }
+
+                        App.Logger.WriteLine(LOG_IDENT, newestLog is null
+                            ? "Could not find a Roblox log file, waiting..."
+                            : $"Could not find recent enough log file, waiting... (newest is {newestLog.Name})");
+                        await Task.Delay(500, cancellationToken);
+                    }
+
+                    LogLocation = logFileInfo.FullName;
+                }
+                else
+                {
+                    logFileInfo = new FileInfo(LogLocation);
+                }
+
+                _logFileStream = new FileStream(
+                    LogLocation,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.ReadWrite | FileShare.Delete,
+                    bufferSize: 16 * 1024,
+                    options: FileOptions.SequentialScan);
+
+                App.Logger.WriteLine(LOG_IDENT, $"Opened {LogLocation}");
+                _streamReader = new StreamReader(_logFileStream);
+                OnLogOpen?.Invoke(this, EventArgs.Empty);
 
                 while (true)
                 {
-                    logFileInfo = new DirectoryInfo(logDirectory)
-                        .GetFiles()
-                        .Where(x => x.Name.Contains("Player", StringComparison.OrdinalIgnoreCase) && x.CreationTime <= DateTime.Now)
-                        .OrderByDescending(x => x.CreationTime)
-                        .First();
+                    cancellationToken.ThrowIfCancellationRequested();
 
-                    if (logFileInfo.CreationTime.AddSeconds(15) > DateTime.Now)
-                        break;
+                    string? log = await _streamReader.ReadLineAsync(cancellationToken);
 
-                    App.Logger.WriteLine(LOG_IDENT, $"Could not find recent enough log file, waiting... (newest is {logFileInfo.Name})");
-                    await Task.Delay(1000);
-                }
+                    if (log is null)
+                    {
+                        await Task.Delay(500, cancellationToken);
+                        continue;
+                    }
 
-                LogLocation = logFileInfo.FullName;
-            }
-            else
-            {
-                logFileInfo = new FileInfo(LogLocation);
-            }
-
-            OnLogOpen?.Invoke(this, EventArgs.Empty);
-            
-            var logFileStream = logFileInfo.Open(FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-
-            App.Logger.WriteLine(LOG_IDENT, $"Opened {LogLocation}");
-
-            using var streamReader = new StreamReader(logFileStream);
-
-            while (!IsDisposed)
-            {
-                string? log = await streamReader.ReadLineAsync();
-
-                if (log is null)
-                    await Task.Delay(1000);
-                else
                     ReadLogEntry(log);
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // Normal shutdown path.
+            }
+            finally
+            {
+                _streamReader?.Dispose();
+                _streamReader = null;
+                _logFileStream?.Dispose();
+                _logFileStream = null;
             }
         }
 
@@ -284,7 +330,13 @@
                     App.Logger.WriteLine(LOG_IDENT, $"Disconnected from Game ({Data})");
 
                     Data.TimeLeft = DateTime.Now;
-                    History.Insert(0, Data);
+                    lock (_historyLock)
+                    {
+                        History.Insert(0, Data);
+
+                        if (History.Count > MaxHistoryEntries)
+                            History.RemoveRange(MaxHistoryEntries, History.Count - MaxHistoryEntries);
+                    }
 
                     InGame = false;
                     Data = new();
@@ -415,7 +467,15 @@
 
         public void Dispose()
         {
-            IsDisposed = true;
+            if (IsDisposed)
+                return;
+
+            Interlocked.Exchange(ref _disposeSignaled, 1);
+            _disposeCancellation.Cancel();
+            _streamReader?.Dispose();
+            _streamReader = null;
+            _logFileStream?.Dispose();
+            _logFileStream = null;
             GC.SuppressFinalize(this);
         }
     }

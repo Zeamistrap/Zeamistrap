@@ -8,7 +8,11 @@ namespace Bloxstrap.Utility
 
         public static Uri BuildApiUrl(string service, string path, bool secure = true)
         {
-            string domain = Deployment.RobloxDomain;
+            return BuildApiUrl(service, path, Deployment.RobloxDomain, secure);
+        }
+
+        public static Uri BuildApiUrl(string service, string path, string domain, bool secure = true)
+        {
             string url = secure ? "https://" : "http://";
             url += service + ".";
             url += domain + "/";

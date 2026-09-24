@@ -5,6 +5,7 @@
     public class Logger
     {
         private readonly SemaphoreSlim _semaphore = new(1, 1);
+        private readonly object _historyLock = new();
         private FileStream? _filestream;
 
         public readonly List<string> History = new();
@@ -12,7 +13,14 @@
         public bool NoWriteMode = false;
         public string? FileLocation;
 
-        public string AsDocument => String.Join('\n', History);
+        public string AsDocument
+        {
+            get
+            {
+                lock (_historyLock)
+                    return String.Join('\n', History);
+            }
+        }
 
         public void Initialize(bool useTempDir = false)
         {
@@ -69,8 +77,13 @@
 
             Initialized = true;
 
-            if (History.Count > 0)
-                WriteToLog(string.Join("\r\n", History));
+            string[] historySnapshot;
+
+            lock (_historyLock)
+                historySnapshot = History.ToArray();
+
+            if (historySnapshot.Length > 0)
+                WriteToLog(string.Join("\r\n", historySnapshot));
 
             WriteLine(LOG_IDENT, "Finished initializing!");
 
@@ -108,10 +121,13 @@
             Debug.WriteLine(outcon);
             WriteToLog(outlog);
 
-            if (History.Count >= 1000)
-                History.RemoveAt(0);
+            lock (_historyLock)
+            {
+                if (History.Count >= 1000)
+                    History.RemoveAt(0);
 
-            History.Add(outlog);
+                History.Add(outlog);
+            }
         }
 
         public void WriteLine(string identifier, string message) => WriteLine($"[{identifier}] {message}");

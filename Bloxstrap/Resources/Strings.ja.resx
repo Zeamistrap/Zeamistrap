@@ -1972,4 +1972,25 @@ Robloxのアプリファイルを使用している可能性のあるアプリ�
   <data name="Menu.Behaviour.HighPriority.Description" xml:space="preserve">
     <value>Robloxのプロセスを高優先度で実行します。フレームレートが安定しやすくなります。</value>
   </data>
+  <data name="Menu.Performance.PowerPlan.Title" xml:space="preserve">
+    <value>電源プラン</value>
+  </data>
+  <data name="Menu.Performance.PowerPlan.Description" xml:space="preserve">
+    <value>ゲームプレイ中にWindowsの電源プランを切り替えてパフォーマンスを最大化します。管理者権限が必要なため、UACプロンプトが表示される場合があります。</value>
+  </data>
+  <data name="Enums.PowerPlan.Balanced" xml:space="preserve">
+    <value>バランス</value>
+  </data>
+  <data name="Enums.PowerPlan.Disabled" xml:space="preserve">
+    <value>変更しない</value>
+  </data>
+  <data name="Enums.PowerPlan.HighPerformance" xml:space="preserve">
+    <value>高パフォーマンス</value>
+  </data>
+  <data name="Enums.PowerPlan.PowerSaver" xml:space="preserve">
+    <value>省電力</value>
+  </data>
+  <data name="Enums.PowerPlan.UltimatePerformance" xml:space="preserve">
+    <value>究極のパフォーマンス</value>
+  </data>
 </root>

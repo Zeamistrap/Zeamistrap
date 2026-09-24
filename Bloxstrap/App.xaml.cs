@@ -184,6 +184,7 @@ namespace Bloxstrap
         protected override void OnStartup(StartupEventArgs e)
         {
             const string LOG_IDENT = "App::OnStartup";
+            long startupStarted = Stopwatch.GetTimestamp();
 
             Locale.Initialize();
 
@@ -310,7 +311,6 @@ namespace Bloxstrap
                 State.Load();
                 RobloxState.Load();
                 FastFlags.Load();
-                GlobalSettings.Load();
 
                 if (Settings.Prop.AllowCookieAccess)
                     Task.Run(Cookies.LoadCookies);
@@ -330,6 +330,8 @@ namespace Bloxstrap
 
                 WindowsRegistry.RegisterApis(); // we want to register those early on
                                                 // so we wont have any issues with bloxshade
+
+                PerformanceMetrics.Mark("startup.initialization", startupStarted);
 
                 LaunchHandler.ProcessLaunchArgs();
             }

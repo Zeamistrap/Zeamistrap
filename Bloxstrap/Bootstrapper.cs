@@ -25,6 +25,7 @@ using System.Web;
 using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Shell;
+using System.Security.Cryptography;
 
 namespace Bloxstrap
 {
@@ -32,6 +33,8 @@ namespace Bloxstrap
     {
         #region Properties
         private const int ProgressBarMaximum = 10000;
+        private const long ProgressUpdateIntervalMilliseconds = 100;
+        private const int DownloadBufferSize = 256 * 1024;
 
         private const double TaskbarProgressMaximumWpf = 1; // this can not be changed. keep it at 1.
         private const int TaskbarProgressMaximumWinForms = WinFormsDialogBase.TaskbarProgressMaximum;
@@ -43,7 +46,6 @@ namespace Bloxstrap
             "	<BaseUrl>http://www.roblox.com</BaseUrl>\r\n" +
             "</Settings>\r\n";
 
-        private readonly FastZipEvents _fastZipEvents = new();
         private readonly CancellationTokenSource _cancelTokenSource = new();
 
         private IAppData AppData = default!;
@@ -55,6 +57,7 @@ namespace Bloxstrap
         private string _latestVersionGuid = null!;
         private string _latestVersionDirectory = null!;
         private PackageManifest _versionPackageManifest = null!;
+        private string[] _ignoredPackages = Array.Empty<string>();
         private GameJoinData _joinData = null!;
         public static bool _staticDirectory => App.Settings.Prop.StaticDirectory;
 
@@ -64,7 +67,9 @@ namespace Bloxstrap
         private double _taskbarProgressMaximum;
         private long _totalDownloadedBytes = 0;
         private long _totalPackagedBytes = 0;
-        private bool _packageExtractionSuccess = true;
+        private readonly object _progressUpdateLock = new();
+        private long _lastProgressUpdateTimestamp;
+        private int _packageExtractionSuccess = 1;
 
         private bool _mustUpgrade => App.LaunchSettings.ForceFlag.Active || App.State.Prop.ForceReinstall || String.IsNullOrEmpty(AppData.State.VersionGuid) || !File.Exists(AppData.ExecutablePath);
         private bool _noConnection = false;
@@ -87,20 +92,6 @@ namespace Bloxstrap
         {
             _launchMode = launchMode;
 
-            // https://github.com/icsharpcode/SharpZipLib/blob/master/src/ICSharpCode.SharpZipLib/Zip/FastZip.cs/#L669-L680
-            // exceptions don't get thrown if we define events without actually binding to the failure events. probably a bug. ¯\_(ツ)_/¯
-            _fastZipEvents.FileFailure += (_, e) =>
-            {
-                // only give a pass to font files (no idea whats wrong with them)
-                if (!e.Name.EndsWith(".ttf"))
-                    throw e.Exception;
-
-                App.Logger.WriteLine("FastZipEvents::OnFileFailure", $"Failed to extract {e.Name}");
-                _packageExtractionSuccess = false;
-            };
-            _fastZipEvents.DirectoryFailure += (_, e) => throw e.Exception;
-            _fastZipEvents.ProcessFile += (_, e) => e.ContinueRunning = !_cancelTokenSource.IsCancellationRequested;
-
             SetupAppData();
         }
 
@@ -113,15 +104,25 @@ namespace Bloxstrap
         // we will use this later on since we have to wait for remote data
         private async Task SetupPackageDictionaries()
         {
-            await App.RemoteData.WaitUntilDataFetched(); // does this even work?
+            RemoteDataBase data = await App.RemoteData.GetSnapshot();
 
-            var localData = App.RemoteData.Prop.PackageMaps[IsStudioLaunch ? "studio" : "player"];
-            var commonData = App.RemoteData.Prop.PackageMaps.CommonPackageMap;
+            var localData = data.PackageMaps[IsStudioLaunch ? "studio" : "player"];
+            var commonData = data.PackageMaps.CommonPackageMap;
+            _ignoredPackages = data.IgnoredPackages.ToArray();
 
             PackageDirectoryMap = new(commonData);
 
             foreach (var package in localData)
                 PackageDirectoryMap[package.Key] = package.Value;
+
+            foreach (Package package in _versionPackageManifest)
+            {
+                if (_ignoredPackages.Contains(package.Name))
+                    continue;
+
+                if (!PackageDirectoryMap.ContainsKey(package.Name))
+                    throw new InvalidDataException($"No package map entry exists for required package '{package.Name}'.");
+            }
         }
 
         private void SetStatus(string message)
@@ -132,32 +133,107 @@ namespace Bloxstrap
                 Dialog.Message = message;
         }
 
-        private void UpdateProgressBar()
+        private void UpdateProgressBar(bool force = false)
         {
-            if (Dialog is null)
+            if (Dialog is null || _cancelTokenSource.IsCancellationRequested)
                 return;
 
-            // update the download status
-            SetStatus(string.Format(
-                Strings.Bootstrapper_Status_DownloadingPackages,
-                FileSize.ByteSize(_totalDownloadedBytes),
-                FileSize.ByteSize(_totalPackagedBytes)
-                ));
+            if (Dialog is WinFormsDialogBase initialDialog &&
+                (initialDialog.IsDisposed || !initialDialog.IsHandleCreated))
+                return;
 
-            // UI progress
-            int progressValue = (int)Math.Floor(_progressIncrement * _totalDownloadedBytes);
+            long now = Environment.TickCount64;
 
-            // bugcheck: if we're restoring a file from a package, it'll incorrectly increment the progress beyond 100
-            // too lazy to fix properly so lol
-            progressValue = Math.Clamp(progressValue, 0, ProgressBarMaximum);
+            lock (_progressUpdateLock)
+            {
+                if (!force && now - _lastProgressUpdateTimestamp < ProgressUpdateIntervalMilliseconds)
+                    return;
 
-            Dialog.ProgressValue = progressValue;
+                _lastProgressUpdateTimestamp = now;
+            }
 
-            // taskbar progress
-            double taskbarProgressValue = _taskbarProgressIncrement * _totalDownloadedBytes;
-            taskbarProgressValue = Math.Clamp(taskbarProgressValue, 0, _taskbarProgressMaximum);
+            void RenderProgress()
+            {
+                var dialog = Dialog;
 
-            Dialog.TaskbarProgressValue = taskbarProgressValue;
+                if (dialog is null || _cancelTokenSource.IsCancellationRequested)
+                    return;
+
+                if (dialog is WinFormsDialogBase winFormsDialogState &&
+                    (winFormsDialogState.IsDisposed || !winFormsDialogState.IsHandleCreated))
+                    return;
+
+                // Read the value on the UI thread. A worker may have queued an
+                // older snapshot by the time this callback runs.
+                long renderedBytes = Interlocked.Read(ref _totalDownloadedBytes);
+
+                // update the download status
+                SetStatus(string.Format(
+                    Strings.Bootstrapper_Status_DownloadingPackages,
+                    FileSize.ByteSize(renderedBytes),
+                    FileSize.ByteSize(_totalPackagedBytes)
+                    ));
+
+                // UI progress
+                int progressValue = (int)Math.Floor(_progressIncrement * renderedBytes);
+
+                // bugcheck: if we're restoring a file from a package, it'll incorrectly increment the progress beyond 100
+                // too lazy to fix properly so lol
+                progressValue = Math.Clamp(progressValue, 0, ProgressBarMaximum);
+
+                dialog.ProgressValue = progressValue;
+
+                // taskbar progress
+                double taskbarProgressValue = _taskbarProgressIncrement * renderedBytes;
+                taskbarProgressValue = Math.Clamp(taskbarProgressValue, 0, _taskbarProgressMaximum);
+
+                dialog.TaskbarProgressValue = taskbarProgressValue;
+            }
+
+            if (Dialog is WinFormsDialogBase winFormsDialog)
+            {
+                if (winFormsDialog.IsDisposed || !winFormsDialog.IsHandleCreated)
+                    return;
+
+                if (winFormsDialog.InvokeRequired)
+                {
+                    try
+                    {
+                        winFormsDialog.BeginInvoke((Action)RenderProgress);
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // The dialog may be closing between the state check and BeginInvoke.
+                    }
+                }
+                else
+                {
+                    RenderProgress();
+                }
+
+                return;
+            }
+
+            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+
+            if (dispatcher is null || dispatcher.HasShutdownStarted || dispatcher.HasShutdownFinished)
+                return;
+
+            if (!dispatcher.CheckAccess())
+            {
+                try
+                {
+                    dispatcher.BeginInvoke((Action)RenderProgress);
+                }
+                catch (InvalidOperationException)
+                {
+                    // The WPF dispatcher may be shutting down.
+                }
+
+                return;
+            }
+
+            RenderProgress();
         }
 
         private void HandleConnectionError(Exception exception)
@@ -196,6 +272,7 @@ namespace Bloxstrap
         public async Task Run()
         {
             const string LOG_IDENT = "Bootstrapper::Run";
+            long runStarted = Stopwatch.GetTimestamp();
 
             App.Logger.WriteLine(LOG_IDENT, "Running bootstrapper");
 
@@ -205,9 +282,11 @@ namespace Bloxstrap
 
             SetStatus(Strings.Bootstrapper_Status_Connecting);
 
+            long connectivityStarted = Stopwatch.GetTimestamp();
             var connectionResult = await Deployment.InitializeConnectivity();
 
-            App.Logger.WriteLine(LOG_IDENT, "Connectivity check finished");
+            App.Logger.WriteLine(LOG_IDENT, $"Connectivity check finished in {Stopwatch.GetElapsedTime(runStarted).TotalMilliseconds:F1} ms");
+            PerformanceMetrics.Mark("bootstrapper.connectivity", connectivityStarted);
 
             if (connectionResult is not null)
                 HandleConnectionError(connectionResult);
@@ -257,9 +336,13 @@ namespace Bloxstrap
 
             if (!_noConnection)
             {
+                long versionLookupStarted = Stopwatch.GetTimestamp();
+
                 try
                 {
                     await GetLatestVersionInfo();
+                    App.Logger.WriteLine(LOG_IDENT, $"Version lookup completed in {Stopwatch.GetElapsedTime(versionLookupStarted).TotalMilliseconds:F1} ms");
+                    PerformanceMetrics.Mark("bootstrapper.version_lookup", versionLookupStarted);
                 }
                 catch (Exception ex)
                 {
@@ -289,7 +372,12 @@ namespace Bloxstrap
                     if (backgroundUpdaterMutexOpen && _mustUpgrade)
                     {
                         // I am Forced Upgrade, killer of Background Updates
-                        Utilities.KillBackgroundUpdater();
+                        if (!Utilities.KillBackgroundUpdater())
+                        {
+                            App.Logger.WriteLine(LOG_IDENT, "Background updater did not stop in time; aborting forced upgrade.");
+                            return;
+                        }
+
                         backgroundUpdaterMutexOpen = false;
                     }
 
@@ -298,7 +386,14 @@ namespace Bloxstrap
                         if (IsEligibleForBackgroundUpdate())
                             StartBackgroundUpdater();
                         else
-                            await UpgradeRoblox();
+                        {
+                            long packageUpgradeStarted = Stopwatch.GetTimestamp();
+                            if (!await UpgradeRoblox())
+                                return;
+
+                            App.Logger.WriteLine(LOG_IDENT, $"Package upgrade completed in {Stopwatch.GetElapsedTime(packageUpgradeStarted).TotalMilliseconds:F1} ms");
+                            PerformanceMetrics.Mark("bootstrapper.package_upgrade", packageUpgradeStarted);
+                        }
                     }
                 }
 
@@ -327,17 +422,21 @@ namespace Bloxstrap
                 if (!App.LaunchSettings.QuietFlag.Active)
                 {
                     // show some balloon tips
-                    if (!_packageExtractionSuccess)
+                    if (_packageExtractionSuccess == 0)
                         Frontend.ShowBalloonTip(Strings.Bootstrapper_ExtractionFailed_Title, Strings.Bootstrapper_ExtractionFailed_Message, ToolTipIcon.Warning);
                     else if (!allModificationsApplied)
                         Frontend.ShowBalloonTip(Strings.Bootstrapper_ModificationsFailed_Title, Strings.Bootstrapper_ModificationsFailed_Message, ToolTipIcon.Warning);
                 }
 
+                long robloxLaunchStarted = Stopwatch.GetTimestamp();
                 await StartRoblox();
+                PerformanceMetrics.Mark("bootstrapper.roblox_launch", robloxLaunchStarted);
             }
 
             await mutex.ReleaseAsync();
 
+            App.Logger.WriteLine(LOG_IDENT, $"Bootstrapper completed in {Stopwatch.GetElapsedTime(runStarted).TotalMilliseconds:F1} ms");
+            PerformanceMetrics.Mark("bootstrapper.total", runStarted);
             Dialog?.CloseBootstrapper();
         }
 
@@ -719,9 +818,42 @@ namespace Bloxstrap
                 App.Logger.WriteLine(LOG_IDENT, "Did not receive the initialisation finished signal, continuing.");
         }
 
+        private static async Task<IntPtr> WaitForMainWindowHandleAsync(Process process, TimeSpan timeout, CancellationToken cancellationToken)
+        {
+            var stopwatch = Stopwatch.StartNew();
+
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                try
+                {
+                    process.Refresh();
+                }
+                catch (InvalidOperationException)
+                {
+                    return IntPtr.Zero;
+                }
+
+                if (process.HasExited)
+                    return IntPtr.Zero;
+
+                IntPtr handle = process.MainWindowHandle;
+
+                if (handle != IntPtr.Zero)
+                    return handle;
+
+                if (stopwatch.Elapsed >= timeout)
+                    return IntPtr.Zero;
+
+                await Task.Delay(100, cancellationToken);
+            }
+        }
+
         private async Task StartRoblox()
         {
             const string LOG_IDENT = "Bootstrapper::StartRoblox";
+            long startRobloxStarted = Stopwatch.GetTimestamp();
 
             SetStatus(Strings.Bootstrapper_Status_Starting);
 
@@ -810,31 +942,6 @@ namespace Bloxstrap
             }
 
             string? logFileName = null;
-
-            string rbxDir = Path.Combine(Paths.LocalAppData, "Roblox");
-            if (!Directory.Exists(rbxDir))
-                Directory.CreateDirectory(rbxDir);
-
-            string rbxLogDir = Path.Combine(rbxDir, "logs");
-            if (!Directory.Exists(rbxLogDir))
-                Directory.CreateDirectory(rbxLogDir);
-
-            var logWatcher = new FileSystemWatcher()
-            {
-                Path = rbxLogDir,
-                Filter = "*.log",
-                EnableRaisingEvents = true
-            };
-
-            var logCreatedEvent = new AutoResetEvent(false);
-
-            logWatcher.Created += (_, e) =>
-            {
-                logWatcher.EnableRaisingEvents = false;
-                logFileName = e.FullPath;
-                logCreatedEvent.Set();
-            };
-
             var autoclosePids = new List<int>();
 
             // the code you're gonna read ahead is horrible. sorry for the hack, but it works ¯\_(ツ)_/¯
@@ -865,24 +972,131 @@ namespace Bloxstrap
                     if (integration?.AutoClose == true && pid != 0)
                         autoclosePids.Add(pid);
 
-                    if (integration?.Delay != null)
-                        Thread.Sleep(integration.Delay);
+                    if (integration is not null && integration.Delay > 0)
+                    {
+                        try
+                        {
+                            await Task.Delay(integration.Delay, _cancelTokenSource.Token);
+                        }
+                        catch (OperationCanceledException) when (_cancelTokenSource.IsCancellationRequested)
+                        {
+                            return;
+                        }
+                    }
                 }
             }
 
+            bool needsWatcher =
+                App.Settings.Prop.EnableActivityTracking ||
+                App.Settings.Prop.EnableWindowManipulation ||
+                App.LaunchSettings.TestModeFlag.Active ||
+                autoclosePids.Count > 0 ||
+                App.Settings.Prop.CustomIntegrations.Any(i => i?.AutoClose == true);
+
+            string rbxLogDir = Path.Combine(Paths.LocalAppData, "Roblox", "logs");
+
+            if (needsWatcher)
+                Directory.CreateDirectory(rbxLogDir);
+
+            using FileSystemWatcher? logWatcher = needsWatcher
+                ? new FileSystemWatcher
+                {
+                    Path = rbxLogDir,
+                    Filter = "*.log"
+                }
+                : null;
+
+            TaskCompletionSource<string>? logCreated = needsWatcher
+                ? new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously)
+                : null;
+
+            if (logWatcher is not null && logCreated is not null)
+            {
+                logWatcher.Created += (_, e) =>
+                {
+                    try
+                    {
+                        logWatcher.EnableRaisingEvents = false;
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // The bootstrapper may have completed while the callback was queued.
+                    }
+
+                    logFileName = e.FullPath;
+                    logCreated.TrySetResult(e.FullPath);
+                };
+            }
+
             // v2.2.0 - byfron will trip if we keep a process handle open for over a minute, so we're doing this now
+            if (App.Settings.Prop.PowerPlan != PowerPlan.Disabled)
+            {
+                var powerPlanStartInfo = new ProcessStartInfo
+                {
+                    FileName = "powercfg.exe",
+                    Arguments = $"/setactive {App.Settings.Prop.PowerPlan.GetSchemeGuid()}",
+                    UseShellExecute = true
+                };
+
+                if (!Utilities.IsAdministrator)
+                    powerPlanStartInfo.Verb = "runas";
+
+                try
+                {
+                    Process.Start(powerPlanStartInfo);
+                    App.Logger.WriteLine(LOG_IDENT, $"Set active power plan to '{App.Settings.Prop.PowerPlan}'");
+                }
+                catch (Win32Exception ex) when (ex.NativeErrorCode == 1223)
+                {
+                    App.Logger.WriteLine(LOG_IDENT, "Power plan change was cancelled (UAC prompt dismissed)");
+                }
+                catch (Exception ex)
+                {
+                    App.Logger.WriteLine(LOG_IDENT, $"Failed to change power plan: {ex.Message}");
+                }
+            }
+
+            PerformanceMetrics.Mark("roblox.preflight", startRobloxStarted);
+
+            // Register the handler before enabling notifications so a fast-starting
+            // Roblox process cannot create its log between those two operations.
+            if (logWatcher is not null)
+                logWatcher.EnableRaisingEvents = true;
+
+            long processStartTimestamp = Stopwatch.GetTimestamp();
+
             try
             {
                 using var process = Process.Start(startInfo)!;
+                _appPid = process.Id;
 
                 if (App.Settings.Prop.UseHighPriority && !process.HasExited)
                     process.PriorityClass = ProcessPriorityClass.High;
 
-                while (process.MainWindowHandle == IntPtr.Zero && !process.HasExited)
-                    Thread.Sleep(100);
+                PerformanceMetrics.Mark("roblox.process_start", processStartTimestamp);
 
-                _appPid = process.Id;
-                _appWindowHandle = process.MainWindowHandle;
+                // Waiting synchronously here blocks the WPF dispatcher and can add
+                // hundreds of milliseconds to every launch. It is also unnecessary
+                // unless a feature actually consumes the window handle.
+                if (App.Settings.Prop.EnableWindowManipulation)
+                {
+                    try
+                    {
+                        long mainWindowWaitStarted = Stopwatch.GetTimestamp();
+                        _appWindowHandle = await WaitForMainWindowHandleAsync(
+                            process,
+                            TimeSpan.FromSeconds(15),
+                            _cancelTokenSource.Token);
+                        PerformanceMetrics.Mark("roblox.main_window_wait", mainWindowWaitStarted);
+
+                        if (_appWindowHandle == IntPtr.Zero && !process.HasExited)
+                            App.Logger.WriteLine(LOG_IDENT, "Roblox main window was not available before the timeout.");
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        return;
+                    }
+                }
             }
             catch (Win32Exception ex) when (ex.NativeErrorCode == 1223)
             {
@@ -896,19 +1110,35 @@ namespace Bloxstrap
                 throw;
             }
 
-            App.Logger.WriteLine(LOG_IDENT, $"Started Roblox (PID {_appPid}), waiting for log file");
+            App.Logger.WriteLine(LOG_IDENT, needsWatcher
+                ? $"Started Roblox (PID {_appPid}), waiting for log file"
+                : $"Started Roblox (PID {_appPid})");
 
-            logCreatedEvent.WaitOne(TimeSpan.FromSeconds(15));
+            if (needsWatcher)
+            {
+                long logWaitStarted = Stopwatch.GetTimestamp();
+                Task completedLogTask = await Task.WhenAny(
+                    logCreated!.Task,
+                    Task.Delay(TimeSpan.FromSeconds(15)),
+                    Task.Delay(Timeout.Infinite, _cancelTokenSource.Token));
 
-            if (String.IsNullOrEmpty(logFileName))
-            {
-                App.Logger.WriteLine(LOG_IDENT, "Unable to identify log file");
-                // Frontend.ShowPlayerErrorDialog();
-                return;
-            }
-            else
-            {
-                App.Logger.WriteLine(LOG_IDENT, $"Got log file as {logFileName}");
+                if (completedLogTask != logCreated.Task || _cancelTokenSource.IsCancellationRequested)
+                    return;
+
+                logFileName = await logCreated.Task;
+
+                if (String.IsNullOrEmpty(logFileName))
+                {
+                    App.Logger.WriteLine(LOG_IDENT, "Unable to identify log file");
+                    // Frontend.ShowPlayerErrorDialog();
+                    return;
+                }
+                else
+                {
+                    App.Logger.WriteLine(LOG_IDENT, $"Got log file as {logFileName}");
+                }
+
+                PerformanceMetrics.Mark("roblox.log_wait", logWaitStarted);
             }
 
             _mutex?.ReleaseAsync();
@@ -952,14 +1182,15 @@ namespace Bloxstrap
                     autoclosePids.Add(pid);
             }
 
-            if (App.Settings.Prop.EnableActivityTracking || App.Settings.Prop.EnableWindowManipulation || App.LaunchSettings.TestModeFlag.Active || autoclosePids.Any())
+            if (needsWatcher)
             {
+                long watcherStartTimestamp = Stopwatch.GetTimestamp();
                 using var ipl = new InterProcessLock("Watcher", TimeSpan.FromSeconds(5));
 
                 var watcherData = new WatcherData
                 {
                     ProcessId = _appPid,
-                    LogFile = logFileName,
+                    LogFile = logFileName!,
                     AutoclosePids = autoclosePids,
                     Handle = _appWindowHandle.ToInt64()
                 };
@@ -973,10 +1204,10 @@ namespace Bloxstrap
 
                 if (ipl.IsAcquired)
                     Process.Start(Paths.Process, args);
+
+                PerformanceMetrics.Mark("roblox.watcher_start", watcherStartTimestamp);
             }
 
-            // allow for window to show, since the log is created pretty far beforehand
-            Thread.Sleep(1000);
         }
 
         private bool ShouldRunAsAdmin()
@@ -1015,16 +1246,14 @@ namespace Bloxstrap
             {
                 try
                 {
-                    // clean up registry keys
+                    // Do not delete the version directory here. Download/extract
+                    // workers may still be using it; UpgradeRoblox will clean it
+                    // before the next install or leave it for validation.
                     WindowsRegistry.RegisterClientLocation(IsStudioLaunch, null);
-
-                    // clean up install
-                    if (Directory.Exists(_latestVersionDirectory))
-                        Directory.Delete(_latestVersionDirectory, true);
                 }
                 catch (Exception ex)
                 {
-                    App.Logger.WriteLine(LOG_IDENT, "Could not fully clean up installation!");
+                    App.Logger.WriteLine(LOG_IDENT, "Could not clear the client location!");
                     App.Logger.WriteException(LOG_IDENT, ex);
                 }
             }
@@ -1033,9 +1262,26 @@ namespace Bloxstrap
                 try
                 {
                     using var process = Process.GetProcessById(_appPid);
-                    process.Kill();
+
+                    // Cancellation must never force-kill a Roblox session that may
+                    // already be in a game. A close request is best-effort; if the
+                    // process has no window yet, leave it running for the user.
+                    if (!process.CloseMainWindow())
+                        App.Logger.WriteLine(LOG_IDENT, $"Unable to request graceful shutdown for PID {_appPid}; leaving it running.");
                 }
-                catch (Exception) { }
+                catch (ArgumentException)
+                {
+                    // The Roblox process has already exited.
+                }
+                catch (InvalidOperationException)
+                {
+                    // The Roblox process has already exited.
+                }
+                catch (Exception ex)
+                {
+                    App.Logger.WriteLine(LOG_IDENT, $"Failed to request shutdown for PID {_appPid}");
+                    App.Logger.WriteException(LOG_IDENT, ex);
+                }
             }
 
             Dialog?.CloseBootstrapper();
@@ -1353,33 +1599,55 @@ namespace Bloxstrap
                 appFlagsKey.DeleteValueSafe(oldClientLocation);
             }
         }
-        private static void KillRobloxPlayers()
+        private static bool CanUpgradeWithoutRunningRoblox()
         {
-            const string LOG_IDENT = "Bootstrapper::KillRobloxPlayers";
+            const string LOG_IDENT = "Bootstrapper::CanUpgradeWithoutRunningRoblox";
 
-            List<Process> processes = new List<Process>();
-            processes.AddRange(Process.GetProcessesByName("RobloxPlayerBeta"));
-            processes.AddRange(Process.GetProcessesByName("RobloxCrashHandler")); // roblox studio doesnt depend on crash handler being open, so this should be fine
+            Process[] processes;
+            try
+            {
+                processes = Process.GetProcessesByName("RobloxPlayerBeta");
+            }
+            catch (Exception ex)
+            {
+                App.Logger.WriteLine(LOG_IDENT, "Unable to enumerate Roblox processes; deferring the upgrade");
+                App.Logger.WriteException(LOG_IDENT, ex);
+                return false;
+            }
 
+            var activeProcessIds = new List<int>();
             foreach (Process process in processes)
             {
                 try
                 {
-                    process.Kill();
+                    if (!process.HasExited)
+                    {
+                        activeProcessIds.Add(process.Id);
+                        App.Logger.WriteLine(LOG_IDENT, $"PID {process.Id} is running; deferring the upgrade to avoid interrupting gameplay");
+                    }
                 }
                 catch (Exception ex)
                 {
-                    App.Logger.WriteLine(LOG_IDENT, $"Failed to close process {process.Id}");
+                    App.Logger.WriteLine(LOG_IDENT, "Unable to inspect a Roblox process; deferring the upgrade");
                     App.Logger.WriteException(LOG_IDENT, ex);
                 }
+                finally
+                {
+                    process.Dispose();
+                }
             }
+
+            return activeProcessIds.Count == 0;
         }
 
 
-        private async Task UpgradeRoblox()
+        private async Task<bool> UpgradeRoblox()
         {
             const string LOG_IDENT = "Bootstrapper::UpgradeRoblox";
             const int THREAD_LIMIT = 5;
+            int threadLimit = App.LaunchSettings.BackgroundUpdaterFlag.Active ? 2 : THREAD_LIMIT;
+
+            App.Logger.WriteLine(LOG_IDENT, $"Using package concurrency limit: {threadLimit}");
 
             if (String.IsNullOrEmpty(AppData.State.VersionGuid))
                 SetStatus(Strings.Bootstrapper_Status_Installing);
@@ -1392,9 +1660,16 @@ namespace Bloxstrap
 
             _isInstalling = true;
 
-            // make sure nothing is running before continuing upgrade
-            if (!App.LaunchSettings.BackgroundUpdaterFlag.Active && !IsStudioLaunch) // TODO: wait for studio processes to close before updating to prevent data loss
-                KillRobloxPlayers();
+            // Never close or kill an active Roblox session during an automatic
+            // upgrade. Defer the package upgrade until the user exits Roblox.
+            if (!App.LaunchSettings.BackgroundUpdaterFlag.Active && !IsStudioLaunch &&
+                !CanUpgradeWithoutRunningRoblox())
+            {
+                App.Logger.WriteLine(LOG_IDENT, "Aborting package upgrade because Roblox is running; no process was closed or killed");
+                SetStatus(Strings.Bootstrapper_Status_CancelUpgrade);
+                _isInstalling = false;
+                return false;
+            }
 
             // get a fully clean install
             if (!App.LaunchSettings.BackgroundUpdaterFlag.Active && Directory.Exists(_latestVersionDirectory))
@@ -1425,7 +1700,7 @@ namespace Bloxstrap
             {
                 Frontend.ShowMessageBox(Strings.Bootstrapper_NotEnoughSpace, MessageBoxImage.Error);
                 App.Terminate(ErrorCode.ERROR_INSTALL_FAILURE);
-                return;
+                return false;
             }
 
             if (Dialog is not null)
@@ -1449,33 +1724,93 @@ namespace Bloxstrap
 
             var packageTasks = new List<Task>();
 
-            var ignoredPackages = App.RemoteData.Prop.IgnoredPackages.ToArray();
+            var ignoredPackages = _ignoredPackages;
 
             // from largest to smallest, this is so larger packages (which need more time) get queued first
             var packages = _versionPackageManifest.Where(p => !ignoredPackages.Contains(p.Name)).OrderBy(p => -p.PackedSize);
 
-            SemaphoreSlim downloadSemaphore = new(THREAD_LIMIT);
-            foreach (var package in packages)
+            var downloadSemaphore = new SemaphoreSlim(threadLimit);
+            using var packageCancellationSource = CancellationTokenSource.CreateLinkedTokenSource(_cancelTokenSource.Token);
+
+            try
             {
-                await downloadSemaphore.WaitAsync(_cancelTokenSource.Token);
+                foreach (var package in packages)
+                {
+                    await downloadSemaphore.WaitAsync(packageCancellationSource.Token);
 
+                    try
+                    {
+                        // Do not pass the cancellation token to Task.Run here. If the token is
+                        // already cancelled, the delegate may never run and the semaphore slot
+                        // would never be released.
+                        var task = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                await DownloadPackage(package, packageCancellationSource.Token);
 
-                var task = Task.Run(async () => {
-                    await DownloadPackage(package);
+                                // we'll extract the runtime installer later if we need to
+                                if (!packageCancellationSource.IsCancellationRequested && package.Name != "WebView2RuntimeInstaller.zip")
+                                {
+                                    ExtractPackage(package, null, packageCancellationSource.Token);
+                                    packageCancellationSource.Token.ThrowIfCancellationRequested();
+                                }
+                            }
+                            catch
+                            {
+                                packageCancellationSource.Cancel();
+                                throw;
+                            }
+                            finally
+                            {
+                                downloadSemaphore.Release();
+                            }
+                        });
 
-                    // we'll extract the runtime installer later if we need to
-                    if (package.Name != "WebView2RuntimeInstaller.zip")
-                        ExtractPackage(package);
+                        packageTasks.Add(task);
+                    }
+                    catch
+                    {
+                        packageCancellationSource.Cancel();
+                        downloadSemaphore.Release();
+                        throw;
+                    }
+                }
 
-                    downloadSemaphore.Release();
-                }, _cancelTokenSource.Token);
-
-                packageTasks.Add(task);
+                await Task.WhenAll(packageTasks);
             }
-            await Task.WhenAll(packageTasks);
+            catch (OperationCanceledException) when (_cancelTokenSource.IsCancellationRequested)
+            {
+                return false;
+            }
+            catch (OperationCanceledException)
+            {
+                // A worker failed and cancelled its siblings. Await all workers so
+                // the original worker exception is surfaced to the caller.
+                await Task.WhenAll(packageTasks);
+                throw;
+            }
+            finally
+            {
+                // A cancellation can happen while the producer is waiting for a
+                // semaphore slot. Always let already-started tasks finish before
+                // disposing the semaphore.
+                try
+                {
+                    await Task.WhenAll(packageTasks);
+                }
+                catch
+                {
+                    // Preserve the original scheduling/task exception.
+                }
+
+                downloadSemaphore.Dispose();
+            }
+
+            UpdateProgressBar(force: true);
 
             if (_cancelTokenSource.IsCancellationRequested)
-                return;
+                return false;
 
             if (Dialog is not null)
             {
@@ -1511,7 +1846,7 @@ namespace Bloxstrap
                         if (package is null)
                         {
                             App.Logger.WriteLine(LOG_IDENT, "Aborted runtime install because package does not exist, has WebView2 been added in this Roblox version yet?");
-                            return;
+                            return false;
                         }
 
                         string baseDirectory = Path.Combine(_latestVersionDirectory, PackageDirectoryMap[package.Name]);
@@ -1598,6 +1933,7 @@ namespace Bloxstrap
             App.RobloxState.Save();
 
             _isInstalling = false;
+            return true;
         }
 
         private static void StartBackgroundUpdater()
@@ -1832,11 +2168,17 @@ namespace Bloxstrap
             return success;
         }
 
-        private async Task DownloadPackage(Package package)
+        private Task DownloadPackage(Package package)
+        {
+            return DownloadPackage(package, _cancelTokenSource.Token);
+        }
+
+        private async Task DownloadPackage(Package package, CancellationToken cancellationToken)
         {
             string LOG_IDENT = $"Bootstrapper::DownloadPackage.{package.Name}";
+            long packageStarted = Stopwatch.GetTimestamp();
 
-            if (_cancelTokenSource.IsCancellationRequested)
+            if (cancellationToken.IsCancellationRequested)
                 return;
 
             Directory.CreateDirectory(Paths.Downloads);
@@ -1859,8 +2201,9 @@ namespace Bloxstrap
                 {
                     App.Logger.WriteLine(LOG_IDENT, $"Package is already downloaded, skipping...");
 
-                    _totalDownloadedBytes += package.PackedSize;
+                    Interlocked.Add(ref _totalDownloadedBytes, package.PackedSize);
                     UpdateProgressBar();
+                    PerformanceMetrics.Mark($"package.{package.Name}", packageStarted);
 
                     return;
                 }
@@ -1873,10 +2216,21 @@ namespace Bloxstrap
                 App.Logger.WriteLine(LOG_IDENT, $"Found existing copy at '{robloxPackageLocation}'! Copying to Downloads folder...");
                 File.Copy(robloxPackageLocation, package.DownloadPath);
 
-                _totalDownloadedBytes += package.PackedSize;
-                UpdateProgressBar();
+                string calculatedMD5 = MD5Hash.FromFile(package.DownloadPath);
 
-                return;
+                if (calculatedMD5 != package.Signature)
+                {
+                    App.Logger.WriteLine(LOG_IDENT, $"Stock package is corrupted ({calculatedMD5} != {package.Signature})! Deleting and re-downloading...");
+                    File.Delete(package.DownloadPath);
+                }
+                else
+                {
+                    Interlocked.Add(ref _totalDownloadedBytes, package.PackedSize);
+                    UpdateProgressBar();
+                    PerformanceMetrics.Mark($"package.{package.Name}", packageStarted);
+
+                    return;
+                }
             }
 
             if (File.Exists(package.DownloadPath))
@@ -1886,53 +2240,100 @@ namespace Bloxstrap
 
             App.Logger.WriteLine(LOG_IDENT, "Downloading...");
 
-            var buffer = new byte[4096];
+            var buffer = new byte[DownloadBufferSize];
 
             for (int i = 1; i <= maxTries; i++)
             {
-                if (_cancelTokenSource.IsCancellationRequested)
+                if (cancellationToken.IsCancellationRequested)
                     return;
 
-                int totalBytesRead = 0;
+                long totalBytesRead = 0;
 
                 try
                 {
-                    var response = await App.HttpClient.GetAsync(packageUrl, HttpCompletionOption.ResponseHeadersRead, _cancelTokenSource.Token);
-                    await using var stream = await response.Content.ReadAsStreamAsync(_cancelTokenSource.Token);
-                    await using var fileStream = new FileStream(package.DownloadPath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Delete);
+                    using var response = await App.HttpClient.GetAsync(packageUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                    response.EnsureSuccessStatusCode();
+
+                    await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+                    await using var fileStream = new FileStream(
+                        package.DownloadPath,
+                        FileMode.CreateNew,
+                        FileAccess.ReadWrite,
+                        FileShare.Delete,
+                        bufferSize: 128 * 1024,
+                        options: FileOptions.SequentialScan | FileOptions.Asynchronous);
+
+                    using var hash = IncrementalHash.CreateHash(HashAlgorithmName.MD5);
 
                     while (true)
                     {
-                        if (_cancelTokenSource.IsCancellationRequested)
+                        if (cancellationToken.IsCancellationRequested)
                         {
-                            stream.Close();
-                            fileStream.Close();
+                            Interlocked.Add(ref _totalDownloadedBytes, -totalBytesRead);
+
+                            try
+                            {
+                                File.Delete(package.DownloadPath);
+                            }
+                            catch (IOException)
+                            {
+                                // The next launch will validate and remove a stale partial file.
+                            }
+                            catch (UnauthorizedAccessException)
+                            {
+                                // The next launch will validate and remove a stale partial file.
+                            }
+
+                            UpdateProgressBar(force: true);
                             return;
                         }
 
-                        int bytesRead = await stream.ReadAsync(buffer, _cancelTokenSource.Token);
+                        int bytesRead = await stream.ReadAsync(buffer.AsMemory(), cancellationToken);
 
                         if (bytesRead == 0)
                             break;
 
+                        hash.AppendData(buffer, 0, bytesRead);
+                        await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
+
                         totalBytesRead += bytesRead;
-
-                        await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), _cancelTokenSource.Token);
-
-                        _totalDownloadedBytes += bytesRead;
+                        Interlocked.Add(ref _totalDownloadedBytes, bytesRead);
                         UpdateProgressBar();
                     }
 
-                    string hash = MD5Hash.FromStream(fileStream);
+                    string calculatedHash = MD5Hash.Stringify(hash.GetHashAndReset());
 
-                    if (hash != package.Signature)
-                        throw new ChecksumFailedException($"Failed to verify download of {packageUrl}\n\nExpected hash: {package.Signature}\nGot hash: {hash}");
+                    if (calculatedHash != package.Signature)
+                        throw new ChecksumFailedException($"Failed to verify download of {packageUrl}\n\nExpected hash: {package.Signature}\nGot hash: {calculatedHash}");
 
                     App.Logger.WriteLine(LOG_IDENT, $"Finished downloading! ({totalBytesRead} bytes total)");
+                    PerformanceMetrics.Mark($"package.{package.Name}", packageStarted);
                     break;
                 }
                 catch (Exception ex)
                 {
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        Interlocked.Add(ref _totalDownloadedBytes, -totalBytesRead);
+
+                        try
+                        {
+                            if (File.Exists(package.DownloadPath))
+                                File.Delete(package.DownloadPath);
+                        }
+                        catch (IOException)
+                        {
+                            // The next launch will validate and remove a stale partial file.
+                        }
+                        catch (UnauthorizedAccessException)
+                        {
+                            // The next launch will validate and remove a stale partial file.
+                        }
+
+                        UpdateProgressBar(force: true);
+                        return;
+                    }
+
                     App.Logger.WriteLine(LOG_IDENT, $"An exception occurred after downloading {totalBytesRead} bytes. ({i}/{maxTries})");
                     App.Logger.WriteException(LOG_IDENT, ex);
 
@@ -1953,23 +2354,45 @@ namespace Bloxstrap
                     if (File.Exists(package.DownloadPath))
                         File.Delete(package.DownloadPath);
 
-                    _totalDownloadedBytes -= totalBytesRead;
-                    UpdateProgressBar();
+                    Interlocked.Add(ref _totalDownloadedBytes, -totalBytesRead);
+                    UpdateProgressBar(force: true);
                 }
             }
         }
 
+        private FastZipEvents CreateFastZipEvents(CancellationToken cancellationToken)
+        {
+            var events = new FastZipEvents();
+
+            // https://github.com/icsharpcode/SharpZipLib/blob/master/src/ICSharpCode.SharpZipLib/Zip/FastZip.cs/#L669-L680
+            // Exceptions are only raised when the failure events are bound.
+            events.FileFailure += (_, e) =>
+            {
+                if (!e.Name.EndsWith(".ttf"))
+                    throw e.Exception;
+
+                App.Logger.WriteLine("FastZipEvents::OnFileFailure", $"Failed to extract {e.Name}");
+                Interlocked.Exchange(ref _packageExtractionSuccess, 0);
+            };
+            events.DirectoryFailure += (_, e) => throw e.Exception;
+            events.ProcessFile += (_, e) => e.ContinueRunning = !cancellationToken.IsCancellationRequested;
+
+            return events;
+        }
+
         private void ExtractPackage(Package package, List<string>? files = null)
+        {
+            ExtractPackage(package, files, _cancelTokenSource.Token);
+        }
+
+        private void ExtractPackage(Package package, List<string>? files, CancellationToken cancellationToken)
         {
             const string LOG_IDENT = "Bootstrapper::ExtractPackage";
 
             string? packageDir = PackageDirectoryMap.GetValueOrDefault(package.Name);
 
             if (packageDir is null)
-            {
-                App.Logger.WriteLine(LOG_IDENT, $"WARNING: {package.Name} was not found in the package map!");
-                return;
-            }
+                throw new InvalidDataException($"No package map entry exists for required package '{package.Name}'.");
 
             string packageFolder = Path.Combine(_latestVersionDirectory, packageDir);
             string? fileFilter = null;
@@ -1987,9 +2410,10 @@ namespace Bloxstrap
 
             App.Logger.WriteLine(LOG_IDENT, $"Extracting {package.Name}...");
 
-            var fastZip = new FastZip(_fastZipEvents);
+            var fastZip = new FastZip(CreateFastZipEvents(cancellationToken));
 
             fastZip.ExtractZip(package.DownloadPath, packageFolder, fileFilter);
+            cancellationToken.ThrowIfCancellationRequested();
 
             App.Logger.WriteLine(LOG_IDENT, $"Finished extracting {package.Name}");
         }

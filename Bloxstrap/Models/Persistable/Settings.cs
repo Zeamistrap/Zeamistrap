@@ -59,6 +59,7 @@ namespace Bloxstrap.Models.Persistable
         public bool ShowServerDetails { get; set; } = false;
         public bool MultiInstanceLaunching { get; set; } = false;
         public bool UseHighPriority { get; set; } = false;
+        public PowerPlan PowerPlan { get; set; } = PowerPlan.Disabled;
         public bool DisableRobloxTopBar { get; set; } = false;
         public ObservableCollection<CustomIntegration> CustomIntegrations { get; set; } = new();
 

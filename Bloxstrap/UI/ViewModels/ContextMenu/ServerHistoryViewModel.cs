@@ -1,4 +1,6 @@
-﻿using System.Windows.Input;
+﻿using System.Windows;
+using System.Windows.Input;
+using System.Windows.Threading;
 using Bloxstrap.Integrations;
 using CommunityToolkit.Mvvm.Input;
 
@@ -7,6 +9,8 @@ namespace Bloxstrap.UI.ViewModels.ContextMenu
     internal class ServerHistoryViewModel : NotifyPropertyChangedViewModel
     {
         private readonly ActivityWatcher _activityWatcher;
+        private readonly Dispatcher _dispatcher;
+        private readonly SemaphoreSlim _loadSemaphore = new(1, 1);
 
         public List<ActivityData>? GameHistory { get; private set; }
 
@@ -21,72 +25,84 @@ namespace Bloxstrap.UI.ViewModels.ContextMenu
         public ServerHistoryViewModel(ActivityWatcher activityWatcher)
         {
             _activityWatcher = activityWatcher;
+            _dispatcher = Application.Current.Dispatcher;
 
-            _activityWatcher.OnGameLeave += (_, _) => LoadData();
+            _activityWatcher.OnGameLeave += (_, _) =>
+                _dispatcher.BeginInvoke((Action)LoadData);
 
             LoadData();
         }
 
         private async void LoadData()
         {
-            LoadState = GenericTriState.Unknown;
-            OnPropertyChanged(nameof(LoadState));
+            await _loadSemaphore.WaitAsync();
 
-            var entries = _activityWatcher.History.Where(x => x.UniverseDetails is null);
-
-            if (entries.Any())
+            try
             {
-                string universeIds = String.Join(',', entries.Select(x => x.UniverseId).Distinct());
+                LoadState = GenericTriState.Unknown;
+                OnPropertyChanged(nameof(LoadState));
 
-                try
+                List<ActivityData> history = _activityWatcher.GetHistorySnapshot();
+                var entries = history.Where(x => x.UniverseDetails is null);
+
+                if (entries.Any())
                 {
-                    await UniverseDetails.FetchBulk(universeIds);
-                }
-                catch (Exception ex)
-                {
-                    App.Logger.WriteException("ServerHistoryViewModel::LoadData", ex);
-                    
-                    Error = ex.Message;
-                    OnPropertyChanged(nameof(Error));
+                    string universeIds = String.Join(',', entries.Select(x => x.UniverseId).Distinct());
 
-                    LoadState = GenericTriState.Failed;
-                    OnPropertyChanged(nameof(LoadState));
-
-                    return;
-                }
-
-                foreach (var entry in entries)
-                    entry.UniverseDetails = UniverseDetails.LoadFromCache(entry.UniverseId);
-            }
-
-            GameHistory = new(_activityWatcher.History);
-
-            var consolidatedJobIds = new List<ActivityData>();
-
-            // consolidate activity entries from in-universe teleports
-            // the time left of the latest activity gets moved to the root activity
-            // the job id of the latest public server activity gets moved to the root activity
-            foreach (var entry in _activityWatcher.History)
-            {
-                if (entry.RootActivity is not null)
-                {
-                    if (entry.RootActivity.TimeLeft < entry.TimeLeft)
-                        entry.RootActivity.TimeLeft = entry.TimeLeft;
-
-                    if (entry.ServerType == ServerType.Public && !consolidatedJobIds.Contains(entry))
+                    try
                     {
-                        entry.RootActivity.JobId = entry.JobId;
-                        consolidatedJobIds.Add(entry);
+                        await UniverseDetails.FetchBulk(universeIds);
+                    }
+                    catch (Exception ex)
+                    {
+                        App.Logger.WriteException("ServerHistoryViewModel::LoadData", ex);
+
+                        Error = ex.Message;
+                        OnPropertyChanged(nameof(Error));
+
+                        LoadState = GenericTriState.Failed;
+                        OnPropertyChanged(nameof(LoadState));
+
+                        return;
                     }
 
-                    GameHistory.Remove(entry);
+                    foreach (var entry in entries)
+                        entry.UniverseDetails = UniverseDetails.LoadFromCache(entry.UniverseId);
                 }
+
+                GameHistory = new(history);
+
+                var consolidatedJobIds = new List<ActivityData>();
+
+                // consolidate activity entries from in-universe teleports
+                // the time left of the latest activity gets moved to the root activity
+                // the job id of the latest public server activity gets moved to the root activity
+                foreach (var entry in history)
+                {
+                    if (entry.RootActivity is not null)
+                    {
+                        if (entry.RootActivity.TimeLeft < entry.TimeLeft)
+                            entry.RootActivity.TimeLeft = entry.TimeLeft;
+
+                        if (entry.ServerType == ServerType.Public && !consolidatedJobIds.Contains(entry))
+                        {
+                            entry.RootActivity.JobId = entry.JobId;
+                            consolidatedJobIds.Add(entry);
+                        }
+
+                        GameHistory.Remove(entry);
+                    }
+                }
+
+                OnPropertyChanged(nameof(GameHistory));
+
+                LoadState = GenericTriState.Successful;
+                OnPropertyChanged(nameof(LoadState));
             }
-
-            OnPropertyChanged(nameof(GameHistory));
-
-            LoadState = GenericTriState.Successful;
-            OnPropertyChanged(nameof(LoadState));
+            finally
+            {
+                _loadSemaphore.Release();
+            }
         }
 
         private void RequestClose() => RequestCloseEvent?.Invoke(this, EventArgs.Empty);

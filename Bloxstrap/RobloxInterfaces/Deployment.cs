@@ -22,11 +22,28 @@ namespace Bloxstrap.RobloxInterfaces
             get => _channel;
             set
             {
-                _channel = value;
-                App.Settings.Prop.Channel = Channel;
-                App.Settings.Save();
+                bool channelChanged = !String.Equals(_channel, value, StringComparison.OrdinalIgnoreCase);
+                bool settingChanged = !String.Equals(App.Settings.Prop.Channel, value, StringComparison.OrdinalIgnoreCase);
 
-                ChannelChanged?.Invoke(null, value);
+                if (!channelChanged && !settingChanged)
+                    return;
+
+                string previousChannel = _channel;
+                string previousSetting = App.Settings.Prop.Channel;
+
+                _channel = value;
+                App.Settings.Prop.Channel = _channel;
+                bool saved = App.Settings.Save();
+
+                if (!saved)
+                {
+                    _channel = previousChannel;
+                    App.Settings.Prop.Channel = previousSetting;
+                }
+                else if (channelChanged)
+                {
+                    ChannelChanged?.Invoke(null, value);
+                }
             }
         }
 
@@ -48,7 +65,8 @@ namespace Bloxstrap.RobloxInterfaces
             HttpStatusCode.NotFound
         };
 
-        private static readonly Dictionary<string, ClientVersion> ClientVersionCache = new();
+        private static readonly Dictionary<string, (ClientVersion Version, DateTimeOffset ExpiresAt)> ClientVersionCache = new();
+        private static readonly TimeSpan ClientVersionCacheLifetime = TimeSpan.FromSeconds(30);
 
         // a list of roblox deployment locations that we check for, in case one of them don't work
         // these are all weighted based on their priority, so that we pick the most optimal one that we can. 0 = highest
@@ -71,7 +89,7 @@ namespace Bloxstrap.RobloxInterfaces
 
             try
             {
-                var response = await App.HttpClient.GetAsync($"{url}/versionStudio", token);
+                using var response = await App.HttpClient.GetAsync($"{url}/versionStudio", token);
 
                 response.EnsureSuccessStatusCode();
 
@@ -143,9 +161,15 @@ namespace Bloxstrap.RobloxInterfaces
 
         public static string GetLocation(string resource)
         {
+            return GetLocation(resource, Channel);
+        }
+
+        private static string GetLocation(string resource, string channel)
+        {
             string location = BaseUrl;
 
-            if (!IsDefaultChannel)
+            if (!channel.Equals(DefaultChannel, StringComparison.OrdinalIgnoreCase) &&
+                !channel.Equals("live", StringComparison.OrdinalIgnoreCase))
                 location += "/channel/common";
 
             location += resource;
@@ -159,7 +183,7 @@ namespace Bloxstrap.RobloxInterfaces
             try
             {
                 Uri apiUrl = UrlBuilder.BuildApiUrl("clientsettings", "v2/user-channel?binaryType=" + binaryType);
-                HttpResponseMessage response = await App.Cookies.AuthGet(apiUrl);
+                using HttpResponseMessage response = await App.Cookies.AuthGet(apiUrl);
                 response.EnsureSuccessStatusCode();
 
                 string content = await response.Content.ReadAsStringAsync();
@@ -187,7 +211,7 @@ namespace Bloxstrap.RobloxInterfaces
             try
             {
                 Uri apiUrl = UrlBuilder.BuildApiUrl("clientsettingscdn", "v2/client-version/WindowsPlayer/channel/" + channel);
-                var response = await App.HttpClient.GetAsync(apiUrl);
+                using var response = await App.HttpClient.GetAsync(apiUrl);
                 response.EnsureSuccessStatusCode();
             }
             catch (HttpRequestException ex)
@@ -199,10 +223,12 @@ namespace Bloxstrap.RobloxInterfaces
             return false;
         }
 
-        public static async Task<DateTime?> GetVersionTimestamp(string version)
+        public static async Task<DateTime?> GetVersionTimestamp(string version, string? channel = null)
         {
             const string LOG_IDENT = "Deployment::GetVersionTimestamp";
             const string header = "last-modified";
+
+            channel ??= Channel;
 
             // since we arent getting the timestamp during launch there shouldnt be any collisions
             if (string.IsNullOrEmpty(BaseUrl))
@@ -210,8 +236,8 @@ namespace Bloxstrap.RobloxInterfaces
 
             try
             {
-                string location = GetLocation($"/{version}-rbxPkgManifest.txt");
-                var response = await App.HttpClient.GetAsync(location);
+                string location = GetLocation($"/{version}-rbxPkgManifest.txt", channel);
+                using var response = await App.HttpClient.GetAsync(location);
                 response.EnsureSuccessStatusCode();
 
                 if (response.Content.Headers.TryGetValues(header, out var values))
@@ -231,7 +257,13 @@ namespace Bloxstrap.RobloxInterfaces
             return null;
         }
 
-        public static async Task<ClientVersion> GetInfo(string? channel = null, bool behindProductionCheck = false, bool includeTimestamp = false)
+        public static async Task<ClientVersion> GetInfo(
+            string? channel = null,
+            bool behindProductionCheck = false,
+            bool includeTimestamp = false,
+            string? contextDomain = null,
+            string? contextBinaryType = null,
+            string? contextToken = null)
         {
             const string LOG_IDENT = "Deployment::GetInfo";
 
@@ -239,42 +271,56 @@ namespace Bloxstrap.RobloxInterfaces
                 channel = Channel;
 
             bool isDefaultChannel = String.Compare(channel, DefaultChannel, StringComparison.OrdinalIgnoreCase) == 0;
+            string domain = contextDomain ?? RobloxDomain;
+            string binaryType = contextBinaryType ?? BinaryType;
+            string channelToken = contextToken ?? ChannelToken;
 
             App.Logger.WriteLine(LOG_IDENT, $"Getting deploy info for channel {channel}");
 
-            string cacheKey = $"{channel}-{BinaryType}";
+            string cacheKey = $"{domain}|{binaryType}|{channel}|{channelToken}|{behindProductionCheck}|{includeTimestamp}";
 
-            HttpRequestMessage request = new() 
+            string path = $"v2/client-version/{binaryType}";
+
+            if (!isDefaultChannel)
+                path += $"/channel/{channel}";
+
+            async Task<ClientVersion> SendVersionRequest(string service)
             {
-                Method = HttpMethod.Get
-            };
-            
-            if (!string.IsNullOrEmpty(ChannelToken))
-            {
-                App.Logger.WriteLine(LOG_IDENT, "Got Roblox-Channel-Token");
-                request.Headers.Add("Roblox-Channel-Token", ChannelToken);
+                using var request = new HttpRequestMessage(HttpMethod.Get, UrlBuilder.BuildApiUrl(service, path, domain));
+
+                if (!string.IsNullOrEmpty(channelToken))
+                {
+                    App.Logger.WriteLine(LOG_IDENT, "Got Roblox-Channel-Token");
+                    request.Headers.Add("Roblox-Channel-Token", channelToken);
+                }
+
+                return await Http.SendJson<ClientVersion>(request);
             }
 
             ClientVersion clientVersion;
 
-            if (ClientVersionCache.ContainsKey(cacheKey))
+            bool hasCachedVersion;
+            (ClientVersion Version, DateTimeOffset ExpiresAt)? cachedVersion = null;
+
+            lock (ClientVersionCache)
+            {
+                hasCachedVersion = ClientVersionCache.TryGetValue(cacheKey, out var entry) && entry.ExpiresAt > DateTimeOffset.UtcNow;
+                if (hasCachedVersion)
+                    cachedVersion = entry;
+            }
+
+            if (hasCachedVersion && cachedVersion is not null)
             {
                 App.Logger.WriteLine(LOG_IDENT, "Deploy information is cached");
-                clientVersion = ClientVersionCache[cacheKey];
+                clientVersion = cachedVersion.Value.Version;
             }
             else
             {
-                string path = $"v2/client-version/{BinaryType}";
-
-                if (!isDefaultChannel)
-                    path += $"/channel/{channel}";
-
                 try
                 {
-                    request.RequestUri = UrlBuilder.BuildApiUrl("clientsettingscdn", path);
-                    clientVersion = await Http.SendJson<ClientVersion>(request);
+                    clientVersion = await SendVersionRequest("clientsettingscdn");
                 }
-                catch (HttpRequestException httpEx) 
+                catch (HttpRequestException httpEx)
                 when (!isDefaultChannel && BadChannelCodes.Contains(httpEx.StatusCode))
                 {
                     throw new InvalidChannelException(httpEx.StatusCode);
@@ -286,8 +332,7 @@ namespace Bloxstrap.RobloxInterfaces
 
                     try
                     {
-                        request.RequestUri = UrlBuilder.BuildApiUrl("clientsettings", path);
-                        clientVersion = await Http.SendJson<ClientVersion>(request);
+                        clientVersion = await SendVersionRequest("clientsettings");
                     }
                     catch (HttpRequestException httpEx)
                     when (!isDefaultChannel && BadChannelCodes.Contains(httpEx.StatusCode))
@@ -299,7 +344,13 @@ namespace Bloxstrap.RobloxInterfaces
                 // check if channel is behind LIVE
                 if (!isDefaultChannel && behindProductionCheck)
                 {
-                    var defaultClientVersion = await GetInfo(DefaultChannel);
+                    var defaultClientVersion = await GetInfo(
+                        DefaultChannel,
+                        behindProductionCheck: false,
+                        includeTimestamp: false,
+                        contextDomain: domain,
+                        contextBinaryType: binaryType,
+                        contextToken: channelToken);
 
                     if (Utilities.CompareVersions(clientVersion.Version, defaultClientVersion.Version) == VersionComparison.LessThan)
                         clientVersion.IsBehindDefaultChannel = true;
@@ -308,9 +359,10 @@ namespace Bloxstrap.RobloxInterfaces
                     clientVersion.IsBehindDefaultChannel = false;
 
                 if (includeTimestamp && clientVersion.Timestamp is null)
-                    clientVersion.Timestamp = await GetVersionTimestamp(clientVersion.VersionGuid);
+                    clientVersion.Timestamp = await GetVersionTimestamp(clientVersion.VersionGuid, channel);
 
-                ClientVersionCache[cacheKey] = clientVersion;
+                lock (ClientVersionCache)
+                    ClientVersionCache[cacheKey] = (clientVersion, DateTimeOffset.UtcNow.Add(ClientVersionCacheLifetime));
             }
 
             return clientVersion;

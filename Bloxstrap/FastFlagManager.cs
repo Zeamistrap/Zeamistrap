@@ -145,17 +145,19 @@ if (Prop[key] is string existing && existing == value.ToString())
 
         public bool IsPreset(string Flag) => PresetFlags.Values.Any(v => v.ToLower() == Flag.ToLower());
 
-        public override void Save()
+        public override bool Save()
         {
             // convert all flag values to strings before saving
 
             foreach (var pair in Prop)
                 Prop[pair.Key] = pair.Value.ToString()!;
 
-            base.Save();
+            if (!base.Save())
+                return false;
 
-            // clone the dictionary
+            // clone the dictionary only after the file was successfully saved
             OriginalProp = new(Prop);
+            return true;
         }
 
         public override void Load(bool alertFailure = true)

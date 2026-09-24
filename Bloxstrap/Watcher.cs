@@ -6,6 +6,7 @@ namespace Bloxstrap
     public class Watcher : IDisposable
     {
         private readonly InterProcessLock _lock = new("Watcher");
+        private readonly CancellationTokenSource _disposeCancellation = new();
 
         private readonly WatcherData? _watcherData;
         
@@ -84,20 +85,27 @@ namespace Bloxstrap
 
         public void KillRobloxProcess() => CloseProcess(_watcherData!.ProcessId, true);
 
-        private static bool IsProcessAlive(int pid)
+        private static Process? GetProcessIfRunning(int pid)
         {
             try
             {
-                using var process = Process.GetProcessById(pid);
-                return !process.HasExited;
+                var process = Process.GetProcessById(pid);
+
+                if (process.HasExited)
+                {
+                    process.Dispose();
+                    return null;
+                }
+
+                return process;
             }
             catch (ArgumentException)
             {
-                return false;
+                return null;
             }
             catch (InvalidOperationException)
             {
-                return false;
+                return null;
             }
         }
 
@@ -134,11 +142,46 @@ namespace Bloxstrap
             if (!_lock.IsAcquired || _watcherData is null)
                 return;
 
-            ActivityWatcher?.Start();
-            WindowManipulation?.Start();
+            Task? activityTask = ActivityWatcher?.StartAsync();
 
-            while (IsProcessAlive(_watcherData.ProcessId))
-                await Task.Delay(1000);
+            try
+            {
+                WindowManipulation?.Start();
+
+                using Process? process = GetProcessIfRunning(_watcherData.ProcessId);
+
+                if (process is not null)
+                {
+                    try
+                    {
+                        await process.WaitForExitAsync(_disposeCancellation.Token);
+                    }
+                    catch (OperationCanceledException) when (_disposeCancellation.IsCancellationRequested)
+                    {
+                        // Normal shutdown path.
+                    }
+                }
+            }
+            finally
+            {
+                ActivityWatcher?.Dispose();
+
+                if (activityTask is not null)
+                {
+                    try
+                    {
+                        await activityTask;
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // Normal shutdown path.
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // Normal shutdown path.
+                    }
+                }
+            }
 
             if (_watcherData.AutoclosePids is not null)
             {
@@ -154,8 +197,11 @@ namespace Bloxstrap
         {
             App.Logger.WriteLine("Watcher::Dispose", "Disposing Watcher");
 
+            _disposeCancellation.Cancel();
+            ActivityWatcher?.Dispose();
             _notifyIcon?.Dispose();
             RichPresence?.Dispose();
+            _lock.Dispose();
 
             App.State.Prop.WatcherRunning = false;
 

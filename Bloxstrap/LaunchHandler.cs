@@ -306,6 +306,21 @@ namespace Bloxstrap
             App.Logger.WriteLine(LOG_IDENT, "Exiting");
         }
 
+        private static void SetCurrentProcessPriority(ProcessPriorityClass priority, string logIdentifier)
+        {
+            try
+            {
+                using var process = Process.GetCurrentProcess();
+                process.PriorityClass = priority;
+                App.Logger.WriteLine(logIdentifier, $"Process priority set to {priority}.");
+            }
+            catch (Exception ex)
+            {
+                App.Logger.WriteLine(logIdentifier, $"Failed to set process priority to {priority}.");
+                App.Logger.WriteException(logIdentifier, ex);
+            }
+        }
+
         public static void LaunchWatcher()
         {
             const string LOG_IDENT = "LaunchHandler::LaunchWatcher";
@@ -380,6 +395,8 @@ namespace Bloxstrap
             // Activate some LaunchFlags we need
             App.LaunchSettings.QuietFlag.Active = true;
             App.LaunchSettings.NoLaunchFlag.Active = true;
+
+            SetCurrentProcessPriority(ProcessPriorityClass.BelowNormal, LOG_IDENT);
 
             App.Logger.WriteLine(LOG_IDENT, "Initializing bootstrapper");
             App.Bootstrapper = new Bootstrapper(LaunchMode.Player)

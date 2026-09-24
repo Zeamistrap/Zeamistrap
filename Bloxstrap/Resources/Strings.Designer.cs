@@ -2287,6 +2287,51 @@ namespace Bloxstrap.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Balanced.
+        /// </summary>
+        public static string Enums_PowerPlan_Balanced {
+            get {
+                return ResourceManager.GetString("Enums.PowerPlan.Balanced", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Don&apos;t change.
+        /// </summary>
+        public static string Enums_PowerPlan_Disabled {
+            get {
+                return ResourceManager.GetString("Enums.PowerPlan.Disabled", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to High performance.
+        /// </summary>
+        public static string Enums_PowerPlan_HighPerformance {
+            get {
+                return ResourceManager.GetString("Enums.PowerPlan.HighPerformance", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Power saver.
+        /// </summary>
+        public static string Enums_PowerPlan_PowerSaver {
+            get {
+                return ResourceManager.GetString("Enums.PowerPlan.PowerSaver", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Ultimate performance.
+        /// </summary>
+        public static string Enums_PowerPlan_UltimatePerformance {
+            get {
+                return ResourceManager.GetString("Enums.PowerPlan.UltimatePerformance", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Vulkan.
         /// </summary>
         public static string Enums_FlagPresets_RenderingMode_Vulkan {
@@ -4792,6 +4837,33 @@ namespace Bloxstrap.Resources {
         public static string Menu_MoreInfo {
             get {
                 return ResourceManager.GetString("Menu.MoreInfo", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Adjust Roblox rendering and performance settings to improve consistency and reduce frame drops..
+        /// </summary>
+        public static string Menu_Performance_Description {
+            get {
+                return ResourceManager.GetString("Menu.Performance.Description", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Switches the active Windows power plan to get the most performance out of your PC while playing. Requires administrator permission, so a UAC prompt may appear..
+        /// </summary>
+        public static string Menu_Performance_PowerPlan_Description {
+            get {
+                return ResourceManager.GetString("Menu.Performance.PowerPlan.Description", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Power plan.
+        /// </summary>
+        public static string Menu_Performance_PowerPlan_Title {
+            get {
+                return ResourceManager.GetString("Menu.Performance.PowerPlan.Title", resourceCulture);
             }
         }
         
