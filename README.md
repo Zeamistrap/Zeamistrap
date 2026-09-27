@@ -62,29 +62,46 @@ dotnet publish .\Bloxstrap\Bloxstrap.csproj -c Release -r win-x64 --self-contain
 - 電源プランの変更はPerformanceページの右側ボタンで明示的に適用し、従来の保存・起動では適用しない
 - 更新後にGitHubのウェブサイトへ自動遷移しない安全化
 
-### Roblox側が突破したFastFlagの削除
+### Robloxの許可リストで無効化されたFastFlagの削除
 
 Robloxは2025年9月にFastFlagの許可リスト（Allowlist）を導入しました。`ClientAppSettings.json`に
 記載したフラグのうち、Robloxのクライアントが実際に受け取るのは公式リストに含まれる18個のみです。
 それ以外はクライアント側で破棄されます（Robloxのログに
 `Denied local configuration for: <フラグ名>` として記録されます）。
 
-本プロジェクトで設定していた上部バー無効化と録画・スクリーンショット無効化のフラグは
-すべてこのリストに含まれておらず、常に無効化に失敗していました。
-Roblox内部の改変や許可リストを迂回する手法は採用せず、両機能を削除しました。
+本プロジェクトで設定していた以下のフラグはすべてこのリストに含まれておらず、
+常に無効化に失敗していました。Roblox内部の改変や許可リストを迂回する手法は採用せず、
+各機能を削除しました。
 
 削除した対象:
 
-- `Settings.DisableRobloxTopBar`、`Settings.DisableRobloxCapture`
-- `FastFlagManager.TopBarFlags`、`FastFlagManager.CaptureDisableFlags`、
-  `TopBarDelayFlag`、`TopBarDelayValue`
-- `FastFlagManager.ApplyTopBarSettings()`、`FastFlagManager.ApplyCaptureSettings()`
-- Integrationsページのトグルスイッチと対応するリソース文字列
-- `MainWindowViewModel` および `IntegrationsViewModel` からの呼び出し
+- 上部バーの無効化
+  - `Settings.DisableRobloxTopBar`
+  - `FastFlagManager.TopBarFlags`、`TopBarDelayFlag`、`TopBarDelayValue`
+  - `FastFlagManager.ApplyTopBarSettings()`
+  - Integrationsページのトグルスイッチと対応するリソース文字列
+- 録画・スクリーンショットの無効化
+  - `Settings.DisableRobloxCapture`
+  - `FastFlagManager.CaptureDisableFlags`
+  - `FastFlagManager.ApplyCaptureSettings()`
+- 動的ヘッド無効化プリセット
+  - `FFlagEnableDynamicHeads`、`DFIntAnimationLodFacsDistanceMin`、
+    `DFIntAnimationLodFacsDistanceMax`、`DFIntAnimationLodFacsVisibilityDenominator`
+  - `FastFlagsViewModel.DynamicHeadsDisabled`
+- PING軽減プリセット
+  - `DFIntConnectionMTUSize`、`DFIntRakNetResendBufferArrayLength`、
+    `DFIntRakNetNakResendDelayMs`、`DFIntRakNetNakResendDelayMsMax`、
+    `DFIntRakNetNakResendDelayRttPercent`、`DFIntClientPacketMaxDelayMs`、
+    `DFIntClientPacketMaxFrameMicroseconds`、`DFIntRakNetLoopMs`
+  - `FastFlagsViewModel.LowPingEnabled`
 
-なお、許可リストに残っているのは `FFlagHandleAltEnterFullscreenManually`、
-`FIntDebugForceMSAASamples`、`FFlagDebugGraphicsPreferVulkan`、`FFlagDebugSkyGray` の4個のみで、
-設定画面の他のプリセットも Roblox 側のリスト変更の影響で今後動かなくなる可能性があります。
+これらの死んだキーは `FastFlagManager.RemoveUnsupportedFlags()` により起動時に
+`ClientAppSettings.json` から削除されます。
+
+現在、残っているプリセット（ManualFullscreen, DisableScaling, MSAA,
+FRMQualityOverride, D3D11, Vulkan, GraySky, MeshLOD）はすべて許可リスト内にあり、
+Robloxに実際に適用されます。なお Roblox はこのリストを予告なく変更できるため、
+今後新たにプリセットが動かなくなる可能性があります。
 
 ### 診断機能の整理
 

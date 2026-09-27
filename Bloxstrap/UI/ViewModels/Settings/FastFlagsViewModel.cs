@@ -64,25 +64,6 @@ namespace Bloxstrap.UI.ViewModels.Settings
             set => App.FastFlags.SetPreset("Rendering.GraySky", value ? "True" : null);
         }
 
-        private static readonly string[] DynamicHeadsAnimationFlags =
-        {
-            "DFIntAnimationLodFacsDistanceMin",
-            "DFIntAnimationLodFacsDistanceMax",
-            "DFIntAnimationLodFacsVisibilityDenominator",
-        };
-
-        public bool DynamicHeadsDisabled
-        {
-            get => App.FastFlags.GetPreset("Rendering.DynamicHeads") == "False";
-            set
-            {
-                App.FastFlags.SetPreset("Rendering.DynamicHeads", value ? "False" : null);
-
-                foreach (string flag in DynamicHeadsAnimationFlags)
-                    App.FastFlags.SetValue(flag, value ? "0" : null);
-            }
-        }
-
         public bool CrowdPerformanceEnabled
         {
             get => App.FastFlags.GetPreset("Rendering.FRMQualityOverride") != null;
@@ -104,28 +85,6 @@ namespace Bloxstrap.UI.ViewModels.Settings
                 OnPropertyChanged(nameof(SelectedMSAALevel));
                 OnPropertyChanged(nameof(GraySkyEnabled));
                 OnPropertyChanged(nameof(FRMQualityOverride));
-            }
-        }
-
-        private static readonly KeyValuePair<string, string>[] LowPingFlags =
-        {
-            new("DFIntConnectionMTUSize", "1280"),
-            new("DFIntRakNetResendBufferArrayLength", "128"),
-            new("DFIntRakNetNakResendDelayMs", "10"),
-            new("DFIntRakNetNakResendDelayMsMax", "100"),
-            new("DFIntRakNetNakResendDelayRttPercent", "50"),
-            new("DFIntClientPacketMaxDelayMs", "10"),
-            new("DFIntClientPacketMaxFrameMicroseconds", "1000"),
-            new("DFIntRakNetLoopMs", "1"),
-        };
-
-        public bool LowPingEnabled
-        {
-            get => App.FastFlags.GetValue("DFIntConnectionMTUSize") != null;
-            set
-            {
-                foreach (var flag in LowPingFlags)
-                    App.FastFlags.SetValue(flag.Key, value ? flag.Value : null);
             }
         }
 

@@ -150,21 +150,9 @@
         </controls:OptionControl>
 
         <controls:OptionControl 
-            Header="{x:Static resources:Strings.Menu_FastFlags_Presets_DisableDynamicHeads_Title}" 
-            Description="{x:Static resources:Strings.Menu_FastFlags_Presets_DisableDynamicHeads_Description}">
-            <ui:ToggleSwitch IsChecked="{Binding DynamicHeadsDisabled, Mode=TwoWay}" />
-        </controls:OptionControl>
-
-        <controls:OptionControl 
             Header="{x:Static resources:Strings.Menu_FastFlags_Presets_CrowdPerformance_Title}" 
             Description="{x:Static resources:Strings.Menu_FastFlags_Presets_CrowdPerformance_Description}">
             <ui:ToggleSwitch IsChecked="{Binding CrowdPerformanceEnabled, Mode=TwoWay}" />
-        </controls:OptionControl>
-
-        <controls:OptionControl 
-            Header="{x:Static resources:Strings.Menu_FastFlags_Presets_LowPing_Title}" 
-            Description="{x:Static resources:Strings.Menu_FastFlags_Presets_LowPing_Description}">
-            <ui:ToggleSwitch IsChecked="{Binding LowPingEnabled, Mode=TwoWay}" />
         </controls:OptionControl>
     </StackPanel>
 </ui:UiPage>

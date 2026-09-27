@@ -636,23 +636,11 @@ Do NOT use this to import large "flag lists" made by other people that promise t
   <data name="Menu.FastFlags.Presets.GraySky.Description" xml:space="preserve">
     <value>Turns the sky gray in games that use the default skybox.</value>
   </data>
-  <data name="Menu.FastFlags.Presets.DisableDynamicHeads.Title" xml:space="preserve">
-    <value>Disable dynamic heads</value>
-  </data>
-  <data name="Menu.FastFlags.Presets.DisableDynamicHeads.Description" xml:space="preserve">
-    <value>Replaces dynamic heads with classic static heads and disables facial animations. Lowers CPU load in crowded areas.</value>
-  </data>
   <data name="Menu.FastFlags.Presets.CrowdPerformance.Title" xml:space="preserve">
     <value>Crowded-area performance preset</value>
   </data>
   <data name="Menu.FastFlags.Presets.CrowdPerformance.Description" xml:space="preserve">
     <value>Automatically lowers rendering quality (quality level, MSAA and sky) to keep FPS stable in heavy scenes. Disabling it reverts these settings.</value>
-  </data>
-  <data name="Menu.FastFlags.Presets.LowPing.Title" xml:space="preserve">
-    <value>Low ping preset</value>
-  </data>
-  <data name="Menu.FastFlags.Presets.LowPing.Description" xml:space="preserve">
-    <value>Tweaks the network layer (MTU, packet resend timing and client buffering) to reduce perceived latency. Effectiveness varies by connection.</value>
   </data>
   <data name="Menu.FastFlags.Title" xml:space="preserve">
     <value>FastFlags</value>

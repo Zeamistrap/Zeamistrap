@@ -617,23 +617,11 @@
   <data name="Menu.FastFlags.Presets.GraySky.Description" xml:space="preserve">
     <value>デフォルトのスカイボックスを使うゲームで、空がグレーになります。</value>
   </data>
-  <data name="Menu.FastFlags.Presets.DisableDynamicHeads.Title" xml:space="preserve">
-    <value>動的ヘッドを無効化</value>
-  </data>
-  <data name="Menu.FastFlags.Presets.DisableDynamicHeads.Description" xml:space="preserve">
-    <value>動的ヘッドを従来の静的なヘッドに置き換え、顔のアニメーションも停止します。人が多い場所でのCPU負荷を軽減します。</value>
-  </data>
   <data name="Menu.FastFlags.Presets.CrowdPerformance.Title" xml:space="preserve">
     <value>混雑時パフォーマンスプリセット</value>
   </data>
   <data name="Menu.FastFlags.Presets.CrowdPerformance.Description" xml:space="preserve">
     <value>画質レベル・MSAA・空の描画を自動的に下げて、高負荷なシーンでFPSを安定させます。オフにすると元の設定に戻ります。</value>
-  </data>
-  <data name="Menu.FastFlags.Presets.LowPing.Title" xml:space="preserve">
-    <value>PING軽減プリセット</value>
-  </data>
-  <data name="Menu.FastFlags.Presets.LowPing.Description" xml:space="preserve">
-    <value>ネットワーク層(MTU・パケット再送タイミング・クライアントバッファリング)を調整し、体感PINGを改善します。効果は回線によって異なります。</value>
   </data>
   <data name="Menu.FastFlags.Title" xml:space="preserve">
     <value>エンジン設定</value>

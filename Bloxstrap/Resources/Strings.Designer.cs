@@ -3953,24 +3953,6 @@ namespace Bloxstrap.Resources {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Disable dynamic heads.
-        /// </summary>
-        public static string Menu_FastFlags_Presets_DisableDynamicHeads_Title {
-            get {
-                return ResourceManager.GetString("Menu.FastFlags.Presets.DisableDynamicHeads.Title", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Replaces dynamic heads with classic static heads and disables facial animations. Lowers CPU load in crowded areas..
-        /// </summary>
-        public static string Menu_FastFlags_Presets_DisableDynamicHeads_Description {
-            get {
-                return ResourceManager.GetString("Menu.FastFlags.Presets.DisableDynamicHeads.Description", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to Crowded-area performance preset.
         /// </summary>
         public static string Menu_FastFlags_Presets_CrowdPerformance_Title {
@@ -3985,24 +3967,6 @@ namespace Bloxstrap.Resources {
         public static string Menu_FastFlags_Presets_CrowdPerformance_Description {
             get {
                 return ResourceManager.GetString("Menu.FastFlags.Presets.CrowdPerformance.Description", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Low ping preset.
-        /// </summary>
-        public static string Menu_FastFlags_Presets_LowPing_Title {
-            get {
-                return ResourceManager.GetString("Menu.FastFlags.Presets.LowPing.Title", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Tweaks the network layer (MTU, packet resend timing and client buffering) to reduce perceived latency. Effectiveness varies by connection..
-        /// </summary>
-        public static string Menu_FastFlags_Presets_LowPing_Description {
-            get {
-                return ResourceManager.GetString("Menu.FastFlags.Presets.LowPing.Description", resourceCulture);
             }
         }
         

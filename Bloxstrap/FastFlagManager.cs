@@ -27,7 +27,6 @@ namespace Bloxstrap
             { "Rendering.Mode.D3D11", "FFlagDebugGraphicsPreferD3D11" },
             { "Rendering.Mode.Vulkan", "FFlagDebugGraphicsPreferVulkan" },
             { "Rendering.GraySky", "FFlagDebugSkyGray" },
-            { "Rendering.DynamicHeads", "FFlagEnableDynamicHeads" },
 
             // Geometry
             { "Geometry.MeshLOD.Static", "DFIntCSGLevelOfDetailSwitchingDistanceStatic" }, // this isnt actually a flag, we use it to determine current value, not the best way of doing that :sob:
@@ -159,6 +158,7 @@ if (Prop[key] is string existing && existing == value.ToString())
         // instead of being left behind as dead keys.
         private static readonly string[] UnsupportedFlags =
         {
+            // removed top bar and capture features
             "FIntFullscreenTitleBarTriggerDelayMillis",
             "FFlagEnableInGameMenuChrome",
             "FFlagEnableInGameMenuChromeABTest3",
@@ -172,6 +172,22 @@ if (Prop[key] is string existing && existing == value.ToString())
             "FFlagCaptureServiceEnableTakeCaptureApi2",
             "DFFlagVideoCaptureServiceEnabled",
             "DFFlagEnableCaptureUpload",
+
+            // removed dynamic heads preset
+            "FFlagEnableDynamicHeads",
+            "DFIntAnimationLodFacsDistanceMin",
+            "DFIntAnimationLodFacsDistanceMax",
+            "DFIntAnimationLodFacsVisibilityDenominator",
+
+            // removed low ping preset
+            "DFIntConnectionMTUSize",
+            "DFIntRakNetResendBufferArrayLength",
+            "DFIntRakNetNakResendDelayMs",
+            "DFIntRakNetNakResendDelayMsMax",
+            "DFIntRakNetNakResendDelayRttPercent",
+            "DFIntClientPacketMaxDelayMs",
+            "DFIntClientPacketMaxFrameMicroseconds",
+            "DFIntRakNetLoopMs",
         };
 
         private void RemoveUnsupportedFlags()
