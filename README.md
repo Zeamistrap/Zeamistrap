@@ -51,6 +51,7 @@ dotnet publish .\Bloxstrap\Bloxstrap.csproj -c Release -r win-x64 --self-contain
 
 ### アプリ内更新画面
 
+- バージョンを1.1.1へ更新
 - 起動時の初期化、package取得、Watcher、HTTP、JSON永続化を軽量化
 - 実行中のRobloxを強制終了しない更新処理
 - GitHub Releases APIから最新リリースを取得し、リリースノートをアプリ内画面に表示
