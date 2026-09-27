@@ -149,12 +149,6 @@ namespace Bloxstrap.UI.ViewModels.Settings
             set => App.Settings.Prop.MultiInstanceLaunching = value;
         }
 
-        public bool DisableTopBarEnabled
-        {
-            get => App.Settings.Prop.DisableRobloxTopBar;
-            set => App.Settings.Prop.DisableRobloxTopBar = value;
-        }
-
         public ObservableCollection<CustomIntegration> CustomIntegrations
         {
             get => App.Settings.Prop.CustomIntegrations;

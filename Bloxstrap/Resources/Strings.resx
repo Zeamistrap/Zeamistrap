@@ -816,7 +816,7 @@ Selecting 'No' will ignore this warning and continue installation.</value>
     <value>Adjust Roblox rendering and performance settings to improve consistency and reduce frame drops.</value>
   </data>
   <data name="Menu.Performance.PowerPlan.Description" xml:space="preserve">
-    <value>Switches the active Windows power plan to get the most performance out of your PC while playing. Requires administrator permission, so a UAC prompt may appear.</value>
+    <value>Switches the active Windows power plan when the save button to the right is pressed. Requires administrator permission, so a UAC prompt may appear.</value>
   </data>
   <data name="Menu.Performance.PowerPlan.Title" xml:space="preserve">
     <value>Power plan</value>
@@ -1906,12 +1906,6 @@ Please don't change this setting unless you know what you're doing.</value>
   </data>
   <data name="Menu.Integrations.MultiInstanceLaunching.Description" xml:space="preserve">
     <value>Allows for having more than one Roblox game client instance open simultaneously.</value>
-  </data>
-  <data name="Menu.Integrations.DisableTopBar.Title" xml:space="preserve">
-    <value>Disable the top bar</value>
-  </data>
-  <data name="Menu.Integrations.DisableTopBar.Description" xml:space="preserve">
-    <value>Prevents the Roblox top bar from automatically appearing when moving your cursor to the top of the screen.</value>
   </data>
   <data name="Common.Performance" xml:space="preserve">
     <value>Performance</value>

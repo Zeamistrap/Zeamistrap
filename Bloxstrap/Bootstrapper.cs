@@ -1020,34 +1020,6 @@ namespace Bloxstrap
                 };
             }
 
-            // v2.2.0 - byfron will trip if we keep a process handle open for over a minute, so we're doing this now
-            if (App.Settings.Prop.PowerPlan != PowerPlan.Disabled)
-            {
-                var powerPlanStartInfo = new ProcessStartInfo
-                {
-                    FileName = "powercfg.exe",
-                    Arguments = $"/setactive {App.Settings.Prop.PowerPlan.GetSchemeGuid()}",
-                    UseShellExecute = true
-                };
-
-                if (!Utilities.IsAdministrator)
-                    powerPlanStartInfo.Verb = "runas";
-
-                try
-                {
-                    Process.Start(powerPlanStartInfo);
-                    App.Logger.WriteLine(LOG_IDENT, $"Set active power plan to '{App.Settings.Prop.PowerPlan}'");
-                }
-                catch (Win32Exception ex) when (ex.NativeErrorCode == 1223)
-                {
-                    App.Logger.WriteLine(LOG_IDENT, "Power plan change was cancelled (UAC prompt dismissed)");
-                }
-                catch (Exception ex)
-                {
-                    App.Logger.WriteLine(LOG_IDENT, $"Failed to change power plan: {ex.Message}");
-                }
-            }
-
             // Register the handler before enabling notifications so a fast-starting
             // Roblox process cannot create its log between those two operations.
             if (logWatcher is not null)

@@ -37,13 +37,6 @@ namespace Bloxstrap
             { "Geometry.MeshLOD.L34", "DFIntCSGLevelOfDetailSwitchingDistanceL34" },
         };
 
-        public static readonly string[] TopBarFlags =
-        {
-            "FFlagEnableInGameMenuChrome",
-            "FFlagEnableInGameMenuChromeABTest4",
-            "FFlagEnableInGameMenuSongbirdABTest",
-        };
-
         public static IReadOnlyDictionary<RenderingMode, string> RenderingModes => new Dictionary<RenderingMode, string>
         {
             { RenderingMode.Default, "None" },
@@ -160,6 +153,33 @@ if (Prop[key] is string existing && existing == value.ToString())
             return true;
         }
 
+        // Roblox only accepts the flags on its published allowlist and discards the rest
+        // ("Denied local configuration for: <flag>" in the Roblox log). The entries below
+        // were used by the removed top bar and capture features, so they are cleaned up
+        // instead of being left behind as dead keys.
+        private static readonly string[] UnsupportedFlags =
+        {
+            "FIntFullscreenTitleBarTriggerDelayMillis",
+            "FFlagEnableInGameMenuChrome",
+            "FFlagEnableInGameMenuChromeABTest3",
+            "FFlagEnableInGameMenuChromeABTest4",
+            "FFlagEnableInGameMenuSongbirdABTest",
+            "FFlagEnableOptionalScreenshotButton2",
+            "FFlagEnableScreenshotKeybind",
+            "FFlagEnableVideoCaptureApi2",
+            "FFlagCapturesCanCaptureVideoIntegrated_v2",
+            "FFlagCapturesVideoCaptureTriggerHandlerEnabled",
+            "FFlagCaptureServiceEnableTakeCaptureApi2",
+            "DFFlagVideoCaptureServiceEnabled",
+            "DFFlagEnableCaptureUpload",
+        };
+
+        private void RemoveUnsupportedFlags()
+        {
+            foreach (string flag in UnsupportedFlags)
+                Prop.Remove(flag);
+        }
+
         public override void Load(bool alertFailure = true)
         {
             base.Load(alertFailure);
@@ -170,31 +190,10 @@ if (Prop[key] is string existing && existing == value.ToString())
             if (GetPreset("Rendering.ManualFullscreen") != "False")
                 SetPreset("Rendering.ManualFullscreen", "False");
 
-            if (App.Settings.Prop.DisableRobloxTopBar)
-            {
-                foreach (string flag in TopBarFlags)
-                    SetValue(flag, "False");
+            RemoveUnsupportedFlags();
 
-                if (Changed)
-                    Save();
-            }
-            else
-            {
-                bool changed = false;
-
-                // only remove the flags that were set to False by this setting, to avoid clobbering the user's own changes
-                foreach (string flag in TopBarFlags)
-                {
-                    if (Prop.TryGetValue(flag, out object? value) && value is string str && str == "False")
-                    {
-                        Prop.Remove(flag);
-                        changed = true;
-                    }
-                }
-
-                if (changed)
-                    Save();
-            }
+            if (Changed)
+                Save();
         }
     }
 }

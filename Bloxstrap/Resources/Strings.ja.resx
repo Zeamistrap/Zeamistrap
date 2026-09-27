@@ -1441,12 +1441,6 @@ Robloxのアプリファイルを使用している可能性のあるアプリ�
   <data name="Menu.Integrations.MultiInstanceLaunching.Description" xml:space="preserve">
     <value>複数のゲームクライアントを同時に起動できるようになります。</value>
   </data>
-  <data name="Menu.Integrations.DisableTopBar.Title" xml:space="preserve">
-    <value>上部バーを無効化する</value>
-  </data>
-  <data name="Menu.Integrations.DisableTopBar.Description" xml:space="preserve">
-    <value>カーソルを画面上部に移動した際にRobloxの上部バーが自動的に表示されるのを防ぎます。</value>
-  </data>
   <data name="Common.Rename" xml:space="preserve">
     <value>名前を変更</value>
   </data>
@@ -1972,11 +1966,14 @@ Robloxのアプリファイルを使用している可能性のあるアプリ�
   <data name="Menu.Behaviour.HighPriority.Description" xml:space="preserve">
     <value>Robloxのプロセスを高優先度で実行します。フレームレートが安定しやすくなります。</value>
   </data>
+  <data name="Menu.Performance.Description" xml:space="preserve">
+    <value>Robloxの描画とパフォーマンス設定を調整して、動作の安定性を高め、フレームドロップを減らします。</value>
+  </data>
   <data name="Menu.Performance.PowerPlan.Title" xml:space="preserve">
     <value>電源プラン</value>
   </data>
   <data name="Menu.Performance.PowerPlan.Description" xml:space="preserve">
-    <value>ゲームプレイ中にWindowsの電源プランを切り替えてパフォーマンスを最大化します。管理者権限が必要なため、UACプロンプトが表示される場合があります。</value>
+    <value>右側の保存ボタンを押すとWindowsの電源プランを切り替えます。管理者権限が必要なため、UACプロンプトが表示される場合があります。</value>
   </data>
   <data name="Enums.PowerPlan.Balanced" xml:space="preserve">
     <value>バランス</value>

@@ -4616,24 +4616,6 @@ namespace Bloxstrap.Resources {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Prevents the Roblox top bar from automatically appearing when moving your cursor to the top of the screen..
-        /// </summary>
-        public static string Menu_Integrations_DisableTopBar_Description {
-            get {
-                return ResourceManager.GetString("Menu.Integrations.DisableTopBar.Description", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Disable the top bar.
-        /// </summary>
-        public static string Menu_Integrations_DisableTopBar_Title {
-            get {
-                return ResourceManager.GetString("Menu.Integrations.DisableTopBar.Title", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to Load.
         /// </summary>
         public static string Menu_Load {
@@ -4722,7 +4704,7 @@ namespace Bloxstrap.Resources {
                 return ResourceManager.GetString("Menu.Mods.Misc.CustomFont.Title", resourceCulture);
             }
         }
-        
+
         /// <summary>
         ///   Looks up a localized string similar to Manage custom Roblox mods here..
         /// </summary>
